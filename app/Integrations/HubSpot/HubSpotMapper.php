@@ -15,17 +15,61 @@ class HubSpotMapper
         /** @var array<string, mixed> $properties */
         $properties = $company['properties'] ?? [];
 
-        return [
+        $mapped = [
             'hubspot_company_id' => (string) ($company['id'] ?? ''),
-            'name' => $this->nullableString($properties['name'] ?? null),
-            'phone' => $this->nullableString($properties['phone'] ?? null),
-            'website' => $this->nullableString($properties['domain'] ?? null),
-            'city' => $this->nullableString($properties['city'] ?? null),
-            'address' => $this->nullableString($properties['address'] ?? null),
-            'postal_code' => $this->nullableString($properties['zip'] ?? null),
-            'country' => $this->nullableString($properties['country'] ?? null),
-            'hubspot_last_modified_at' => $this->parseHubSpotDate($properties['hs_lastmodifieddate'] ?? null),
+            'hubspot_properties' => $properties,
+            'last_synced_at' => now(),
         ];
+
+        foreach (config('hubspot.company_field_map', []) as $hubspotProperty => $definition) {
+            $column = $definition['column'] ?? null;
+            $type = $definition['type'] ?? 'string';
+
+            if (! is_string($column) || $column === '') {
+                continue;
+            }
+
+            $mapped[$column] = $this->castValue($properties[$hubspotProperty] ?? null, $type);
+        }
+
+        return $mapped;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function mappedCustomerColumns(): array
+    {
+        $columns = [];
+
+        foreach (config('hubspot.company_field_map', []) as $definition) {
+            $column = $definition['column'] ?? null;
+
+            if (is_string($column) && $column !== '') {
+                $columns[] = $column;
+            }
+        }
+
+        return array_values(array_unique($columns));
+    }
+
+    /**
+     * @param mixed $value
+     */
+    protected function castValue(mixed $value, string $type): mixed
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return match ($type) {
+            'string' => $this->nullableString($value),
+            'int', 'integer' => (int) $value,
+            'float', 'decimal' => (float) $value,
+            'bool', 'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            'datetime' => $this->parseHubSpotDate($value),
+            default => $this->nullableString($value),
+        };
     }
 
     /**
@@ -51,7 +95,6 @@ class HubSpotMapper
             return null;
         }
 
-        // HubSpot commonly returns hs_lastmodifieddate as unix epoch in milliseconds.
         if (is_numeric($value)) {
             return CarbonImmutable::createFromTimestampMs((int) $value);
         }

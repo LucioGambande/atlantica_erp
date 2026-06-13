@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\HubSpotWebhookController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
+
+Route::post('/webhooks/hubspot', HubSpotWebhookController::class);
 
 Route::middleware('auth')->group(function () {
     Route::post('/orders', [OrderController::class, 'store'])

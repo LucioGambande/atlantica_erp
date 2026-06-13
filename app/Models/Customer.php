@@ -26,6 +26,7 @@ class Customer extends Model
         'hubspot_company_id',
         'hubspot_last_modified_at',
         'last_synced_at',
+        'hubspot_properties',
     ];
 
     protected function casts(): array
@@ -34,6 +35,7 @@ class Customer extends Model
             'credit_limit' => 'decimal:2',
             'hubspot_last_modified_at' => 'datetime',
             'last_synced_at' => 'datetime',
+            'hubspot_properties' => 'array',
         ];
     }
 

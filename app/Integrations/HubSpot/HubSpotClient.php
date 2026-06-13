@@ -32,7 +32,7 @@ class HubSpotClient
     {
         $response = $this->request()
             ->get("/crm/v3/objects/companies/{$id}", [
-                'properties' => implode(',', HubSpotCompanyService::COMPANY_PROPERTIES),
+                'properties' => implode(',', HubSpotCompanyPropertyList::syncedProperties()),
             ])
             ->throw();
 
@@ -66,7 +66,7 @@ class HubSpotClient
                     ],
                 ],
             ],
-            'properties' => HubSpotCompanyService::COMPANY_PROPERTIES,
+            'properties' => HubSpotCompanyPropertyList::syncedProperties(),
         ], static fn (mixed $value): bool => $value !== null);
 
         $response = $this->request()
@@ -85,7 +85,7 @@ class HubSpotClient
         return array_filter([
             'limit' => $params['limit'] ?? config('hubspot.page_limit', 100),
             'after' => $params['after'] ?? null,
-            'properties' => implode(',', HubSpotCompanyService::COMPANY_PROPERTIES),
+            'properties' => implode(',', HubSpotCompanyPropertyList::syncedProperties()),
         ], static fn (mixed $value): bool => $value !== null);
     }
 

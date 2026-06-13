@@ -4,24 +4,20 @@ namespace App\Integrations\HubSpot;
 
 class HubSpotCompanyService
 {
-    public const COMPANY_PROPERTIES = [
-        'name',
-        'phone',
-        'domain',
-        'city',
-        'address',
-        'zip',
-        'country',
-        'hs_lastmodifieddate',
-    ];
-
     public function __construct(
         protected HubSpotClient $client,
     ) {
     }
 
     /**
-     * @param string|null $after
+     * @return list<string>
+     */
+    public function syncedProperties(): array
+    {
+        return HubSpotCompanyPropertyList::syncedProperties();
+    }
+
+    /**
      * @return array{results: array<int, array<string, mixed>>, next_after: string|null}
      */
     public function getPage(?string $after = null): array
@@ -35,8 +31,6 @@ class HubSpotCompanyService
     }
 
     /**
-     * @param string $updatedAfterMilliseconds Unix epoch in milliseconds.
-     * @param string|null $after
      * @return array{results: array<int, array<string, mixed>>, next_after: string|null}
      */
     public function getIncrementalPage(string $updatedAfterMilliseconds, ?string $after = null): array
@@ -48,6 +42,14 @@ class HubSpotCompanyService
         ]);
 
         return $this->extractPageData($response);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getCompanyById(string $id): array
+    {
+        return $this->client->getCompanyById($id);
     }
 
     /**

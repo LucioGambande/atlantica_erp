@@ -69,6 +69,16 @@ class HubSpotCompanySyncService
     }
 
     /**
+     * @return array{processed:int,created:int,updated:int,failed:int}
+     */
+    public function syncByHubSpotCompanyId(string $hubspotCompanyId): array
+    {
+        $company = $this->hubSpotCompanyService->getCompanyById($hubspotCompanyId);
+
+        return $this->upsertFromHubSpot($company);
+    }
+
+    /**
      * @param array<string, mixed> $companyData
      * @return array{processed:int,created:int,updated:int,failed:int}
      */
@@ -96,11 +106,20 @@ class HubSpotCompanySyncService
         if ($customer === null) {
             Customer::query()->create($this->buildCreatePayload($mapped));
 
+            Log::channel('hubspot')->info('HubSpot company created as customer.', [
+                'hubspot_company_id' => $hubspotCompanyId,
+            ]);
+
             return ['processed' => 1, 'created' => 1, 'updated' => 0, 'failed' => 0];
         }
 
         $customer->fill($this->buildUpdatePayload($customer->toArray(), $mapped));
         $customer->save();
+
+        Log::channel('hubspot')->info('HubSpot company updated customer.', [
+            'hubspot_company_id' => $hubspotCompanyId,
+            'customer_id' => $customer->id,
+        ]);
 
         return ['processed' => 1, 'created' => 0, 'updated' => 1, 'failed' => 0];
     }
@@ -142,20 +161,22 @@ class HubSpotCompanySyncService
      */
     protected function buildCreatePayload(array $mapped): array
     {
-        return [
+        $payload = [
             'name' => $mapped['name'] ?? 'Empresa sin nombre',
-            'phone' => $mapped['phone'] ?? null,
-            'website' => $mapped['website'] ?? null,
-            'address' => $mapped['address'] ?? null,
-            'city' => $mapped['city'] ?? null,
-            'postal_code' => $mapped['postal_code'] ?? null,
-            'country' => $mapped['country'] ?? null,
             'customer_type' => 'horeca',
             'credit_limit' => 0,
             'hubspot_company_id' => $mapped['hubspot_company_id'],
-            'hubspot_last_modified_at' => $mapped['hubspot_last_modified_at'] ?? null,
+            'hubspot_properties' => $mapped['hubspot_properties'] ?? null,
             'last_synced_at' => now(),
         ];
+
+        foreach ($this->mapper->mappedCustomerColumns() as $column) {
+            if (array_key_exists($column, $mapped)) {
+                $payload[$column] = $mapped[$column];
+            }
+        }
+
+        return $payload;
     }
 
     /**
@@ -167,18 +188,16 @@ class HubSpotCompanySyncService
     {
         $payload = [
             'hubspot_company_id' => $mapped['hubspot_company_id'],
-            'hubspot_last_modified_at' => $mapped['hubspot_last_modified_at'] ?? null,
+            'hubspot_properties' => $mapped['hubspot_properties'] ?? null,
             'last_synced_at' => now(),
         ];
 
-        foreach (['name', 'phone', 'website', 'address', 'city', 'postal_code', 'country'] as $field) {
-            // Placeholder for future bidirectional support.
-            // Here we can preserve manually edited fields using metadata/audits.
-            if ($this->shouldPreserveManualValue($field, $existing[$field] ?? null, $mapped[$field] ?? null)) {
+        foreach ($this->mapper->mappedCustomerColumns() as $column) {
+            if ($this->shouldPreserveManualValue($column, $existing[$column] ?? null, $mapped[$column] ?? null)) {
                 continue;
             }
 
-            $payload[$field] = $mapped[$field] ?? null;
+            $payload[$column] = $mapped[$column] ?? null;
         }
 
         return $payload;
@@ -190,9 +209,7 @@ class HubSpotCompanySyncService
      */
     protected function shouldPreserveManualValue(string $field, mixed $existingValue, mixed $incomingValue): bool
     {
-        // Future-safe hook: keep here for bidirectional logic.
-        // For now we do not block updates, only centralize decision point.
-        return false;
+        return in_array($field, config('hubspot.erp_only_fields', []), true);
     }
 
     /**

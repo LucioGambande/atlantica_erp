@@ -30,6 +30,10 @@ class SyncHubSpotCompaniesJob implements ShouldQueue
         HubSpotCompanyService $hubSpotCompanyService,
         HubSpotCompanySyncService $syncService,
     ): void {
+        Log::channel('hubspot')->info('SyncHubSpotCompaniesJob started.', [
+            'mode' => $this->full ? 'full' : 'incremental',
+        ]);
+
         $after = null;
         $dispatched = 0;
         $lastSyncAt = $syncService->getLastIncrementalSyncAt();
