@@ -21,7 +21,8 @@ class PaymentController extends Controller
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'invoice_id' => ['nullable', 'integer', 'exists:invoices,id'],
             'amount' => ['required', 'numeric', 'gt:0'],
-            'payment_method' => ['nullable', 'string', 'max:255'],
+            'payment_method_id' => ['required', 'integer', 'exists:payment_methods,id'],
+            'detail' => ['nullable', 'array'],
             'paid_at' => ['required', 'date'],
         ]);
 

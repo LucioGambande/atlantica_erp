@@ -43,6 +43,31 @@ class Invoice extends Model
         return $this->hasMany(InvoiceItem::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function paidAmount(): float
+    {
+        return round((float) $this->payments()->sum('amount'), 2);
+    }
+
+    public function remainingAmount(): float
+    {
+        return max(0, round((float) $this->total_amount - $this->paidAmount(), 2));
+    }
+
+    public function isFullyPaid(): bool
+    {
+        return $this->status === 'paid' || $this->remainingAmount() <= 0;
+    }
+
+    public function canRegisterPayment(): bool
+    {
+        return $this->status === 'issued' && $this->remainingAmount() > 0;
+    }
+
     public function recalculateTotalFromItems(): void
     {
         $this->loadMissing('invoiceItems');

@@ -1,0 +1,84 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\PaymentDetails\BankTransferPaymentDetail;
+use App\Models\PaymentDetails\BizumPaymentDetail;
+use App\Models\PaymentDetails\CardPaymentDetail;
+use App\Models\PaymentDetails\CashPaymentDetail;
+use App\Models\PaymentDetails\ChequePaymentDetail;
+use App\Models\PaymentDetails\GenericPaymentDetail;
+use App\Models\PaymentMethod;
+use App\Support\PaymentDetailType;
+use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
+
+class PaymentDetailService
+{
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function createForMethod(PaymentMethod $method, array $data): Model
+    {
+        return match ($method->detail_type) {
+            PaymentDetailType::BANK_TRANSFER => BankTransferPaymentDetail::create([
+                'transaction_number' => $this->requiredString($data, 'transaction_number', 'El número de transacción es obligatorio.'),
+                'bank_reference' => $data['bank_reference'] ?? null,
+            ]),
+            PaymentDetailType::CARD => CardPaymentDetail::create([
+                'authorization_code' => $data['authorization_code'] ?? null,
+                'card_last_four' => $data['card_last_four'] ?? null,
+            ]),
+            PaymentDetailType::CASH => CashPaymentDetail::create([
+                'notes' => $data['notes'] ?? null,
+            ]),
+            PaymentDetailType::BIZUM => BizumPaymentDetail::create([
+                'operation_code' => $data['operation_code'] ?? null,
+                'phone' => $data['phone'] ?? null,
+            ]),
+            PaymentDetailType::CHEQUE => ChequePaymentDetail::create([
+                'cheque_number' => $this->requiredString($data, 'cheque_number', 'El número de cheque es obligatorio.'),
+                'bank_name' => $data['bank_name'] ?? null,
+            ]),
+            default => GenericPaymentDetail::create([
+                'notes' => $data['notes'] ?? null,
+            ]),
+        };
+    }
+
+    public function summary(?Model $detail): string
+    {
+        if ($detail === null) {
+            return '—';
+        }
+
+        return match ($detail::class) {
+            BankTransferPaymentDetail::class => 'Transacción: '.$detail->transaction_number,
+            CardPaymentDetail::class => collect([
+                $detail->authorization_code ? 'Auth: '.$detail->authorization_code : null,
+                $detail->card_last_four ? 'Tarjeta: ****'.$detail->card_last_four : null,
+            ])->filter()->implode(' · ') ?: '—',
+            CashPaymentDetail::class, GenericPaymentDetail::class => $detail->notes ?: '—',
+            BizumPaymentDetail::class => collect([
+                $detail->operation_code ? 'Código: '.$detail->operation_code : null,
+                $detail->phone ? 'Tel: '.$detail->phone : null,
+            ])->filter()->implode(' · ') ?: '—',
+            ChequePaymentDetail::class => 'Cheque: '.$detail->cheque_number,
+            default => '—',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function requiredString(array $data, string $key, string $message): string
+    {
+        $value = trim((string) ($data[$key] ?? ''));
+
+        if ($value === '') {
+            throw new InvalidArgumentException($message);
+        }
+
+        return $value;
+    }
+}

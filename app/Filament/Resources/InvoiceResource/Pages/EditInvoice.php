@@ -13,6 +13,13 @@ class EditInvoice extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('markAsPaid')
+                ->label('Registrar pago')
+                ->icon('heroicon-o-banknotes')
+                ->color('success')
+                ->visible(fn (): bool => $this->getRecord()->canRegisterPayment())
+                ->form(fn (): array => InvoiceResource::markAsPaidFormSchema($this->getRecord()))
+                ->action(fn (array $data) => InvoiceResource::registerInvoicePayment($this->getRecord(), $data)),
             Actions\DeleteAction::make(),
         ];
     }
