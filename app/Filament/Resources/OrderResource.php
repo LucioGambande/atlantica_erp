@@ -3,19 +3,23 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\OrderResource\Pages;
+use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\InvoiceService;
 use App\Support\LineItemTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Number;
+use RuntimeException;
 
 class OrderResource extends Resource
 {
@@ -43,6 +47,44 @@ class OrderResource extends Resource
             'Cliente' => $record->customer?->name ?? '—',
             'Estado' => $record->status,
         ];
+    }
+
+    /**
+     * @return array<int, Forms\Components\Component>
+     */
+    public static function invoiceOrderFormSchema(): array
+    {
+        return [
+            Forms\Components\Checkbox::make('generates_stock_movement')
+                ->label('Genera movimiento de stock')
+                ->default(false),
+        ];
+    }
+
+    public static function invoiceOrder(Order $order, array $data): ?Invoice
+    {
+        try {
+            $invoice = app(InvoiceService::class)->createFromOrder(
+                $order,
+                (bool) ($data['generates_stock_movement'] ?? false),
+            );
+
+            Notification::make()
+                ->title('Factura creada')
+                ->body("Factura {$invoice->invoice_number} generada correctamente.")
+                ->success()
+                ->send();
+
+            return $invoice;
+        } catch (RuntimeException $exception) {
+            Notification::make()
+                ->title('No se pudo facturar el pedido')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return null;
+        }
     }
 
     public static function recalculateLineTotal(Set $set, Get $get): void
@@ -203,6 +245,12 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('total_amount')
                     ->money('EUR')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('invoice.invoice_number')
+                    ->label('Factura')
+                    ->placeholder('—')
+                    ->url(fn (Order $record): ?string => $record->invoice
+                        ? InvoiceResource::getUrl('edit', ['record' => $record->invoice])
+                        : null),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
@@ -230,6 +278,19 @@ class OrderResource extends Resource
                     }),
             ])
             ->actions([
+                Tables\Actions\Action::make('invoiceOrder')
+                    ->label('Facturar pedido')
+                    ->icon('heroicon-o-document-text')
+                    ->color('success')
+                    ->visible(fn (Order $record): bool => $record->canBeInvoiced())
+                    ->form(static::invoiceOrderFormSchema())
+                    ->action(function (Order $record, array $data, $livewire): void {
+                        $invoice = static::invoiceOrder($record, $data);
+
+                        if ($invoice !== null) {
+                            $livewire->redirect(InvoiceResource::getUrl('edit', ['record' => $invoice]));
+                        }
+                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

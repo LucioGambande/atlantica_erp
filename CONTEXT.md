@@ -1,7 +1,7 @@
 # Atlántica Terranova ERP — Contexto para asistente IA
 
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
-> La documentación técnica completa está en `project.md`.
+> La documentación técnica completa está en `PROJECT.md`.
 > Última actualización: junio 2026.
 
 ---
@@ -59,8 +59,10 @@ Flete de referencia (Mendoza → Barcelona vía Valparaíso): 20' ~€4,243 / 40
 Cliente HubSpot → sync → Customer en Laravel
   → Order (con OrderItems + descuentos por línea)
     → Invoice (desde Order, via InvoiceService)
-      → Payment (via PaymentService; marca factura paid si cubre total)
+      → Payment (PaymentMethod + detalle polimórfico; marca factura paid)
 ```
+
+Métodos de pago configurables en **Métodos de pago** (Filament). Ej.: transferencia bancaria exige `transaction_number`. Registro desde factura emitida → **Registrar pago**.
 
 Stock se descuenta automáticamente al completar el pedido (`StockService`). Los movimientos quedan en `StockMovement`.
 
@@ -85,6 +87,9 @@ Hoy Filament solo controla acceso por rol `admin` global. La restricción por re
 - **Dirección:** HubSpot → Laravel (unidireccional). Laravel será maestro a futuro.
 - Sync completo: `./vendor/bin/sail artisan hubspot:sync-companies --full`
 - Sync incremental (cada 15 min vía scheduler): `--incremental`
+- Health check: `./vendor/bin/sail artisan hubspot:health-check`
+- Webhook: `POST /api/webhooks/hubspot` (requiere `HUBSPOT_CLIENT_SECRET` y worker)
+- Token válido: `pat-eu1-...` o `pat-na1-...` (no Developer API key `eu1-...`)
 - **Sin `queue:work` activo, los jobs se encolan pero no se ejecutan.**
 - Match de clientes: primero por `hubspot_company_id`, fallback por `website`.
 
@@ -95,21 +100,28 @@ Hoy Filament solo controla acceso por rol `admin` global. La restricción por re
 1. `StockMovement.reference_type/id` — polimórfico manual, sin `morphTo` en modelo
 2. Permisos Spatie no aplicados por recurso en Filament (solo rol admin global)
 3. API autenticada con guard `web` (sesión), no Sanctum/tokens
-4. `shouldPreserveManualValue()` en HubSpotCompanySyncService retorna `false` siempre — lógica de protección de campos pendiente
-5. Breeze sigue en el proyecto; sus rutas redirigen a Filament (legacy)
+4. `shouldPreserveManualValue()` en HubSpotCompanySyncService — lógica de protección de campos pendiente
+5. Breeze + vistas Blade legacy; rutas redirigen a Filament
+6. `FacturasSeeder`: facturas `paid` sin registros en `payments`
+7. Tipos de detalle de pago: agregar uno nuevo requiere código (tabla + modelo), no solo CRUD
+8. i18n Filament parcial (labels autogenerados en inglés)
+
+Detalle ampliado de fallas y backlog: ver `PROJECT.md` → secciones **Fallas conocidas** y **Backlog técnico**.
 
 ---
 
 ## Próximos pasos del proyecto
 
-1. Supervisor para `queue:work` en producción
-2. Comando `hubspot:health-check`
-3. Logs de progreso en jobs HubSpot (upserts, errores por company)
-4. Restricción Filament por permisos Spatie además de rol `admin`
-5. Sanctum si la API se consume fuera del browser
-6. **ERP → HubSpot (bidireccional)**: cuando Laravel sea maestro de datos
-7. **Shopify como canal ecommerce secundario** — integración futura
-8. **ERP desplegado en Laravel Cloud + PostgreSQL** (producción)
+Ver backlog priorizado en `PROJECT.md`. Resumen:
+
+1. Worker permanente (Supervisor) en producción
+2. Backfill pagos para facturas históricas del seeder
+3. Permisos Spatie por recurso + roles `superadmin`/`operator`/`viewer`
+4. Pagos parciales y reversión de estado al eliminar pago
+5. i18n completo del panel (`lang/es/erp.php`)
+6. ERP → HubSpot bidireccional (futuro)
+7. Shopify como canal ecommerce (futuro)
+8. Despliegue Laravel Cloud + PostgreSQL
 
 ---
 

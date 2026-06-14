@@ -19,7 +19,8 @@ class InvoiceController extends Controller
     {
         try {
             $order = Order::query()->findOrFail($orderId);
-            $invoice = $this->invoiceService->createFromOrder($order);
+            $generatesStockMovement = (bool) request()->boolean('generates_stock_movement');
+            $invoice = $this->invoiceService->createFromOrder($order, $generatesStockMovement);
 
             return response()->json([
                 'message' => 'Invoice created successfully.',

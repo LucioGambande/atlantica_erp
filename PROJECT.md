@@ -1,6 +1,6 @@
 # Atlantica ERP — Documentación técnica del proyecto
 
-Handoff para desarrollo e iteración (IA/humanos). Última actualización: abril 2026.
+Handoff para desarrollo e iteración (IA/humanos). Última actualización: junio 2026.
 
 ## Resumen
 
@@ -14,7 +14,7 @@ ERP comercial B2B para **Atlantica Terranova**. Laravel 12 es la **fuente de ver
 | Auth | Sesión Laravel (`guard web`) + Breeze (secundario) |
 | Permisos | Spatie Laravel Permission |
 | Colas | `database` (`QUEUE_CONNECTION=database`) |
-| Integración CRM | HubSpot Companies API (HTTP Client) |
+| Integración CRM | HubSpot Companies API + webhooks |
 | Entorno local | Laravel Sail (`docker-compose.yml`) |
 
 ---
@@ -99,6 +99,7 @@ Usuario admin esperado en seed: `admin@atlanticaterranova.com` (debe existir y t
 | `credit_limit` | decimal, default 0 |
 | `hubspot_company_id` | string nullable, **unique** |
 | `hubspot_last_modified_at`, `last_synced_at` | timestamp nullable |
+| `hubspot_properties` | json nullable (snapshot propiedades HubSpot) |
 | Soft deletes | sí |
 
 Relaciones: `orders`, `invoices`, `payments`. Accesor `balance` = facturas `issued` − pagos.
@@ -115,16 +116,36 @@ Datos fiscales/contacto. Soft deletes. `hasMany` `purchaseInvoices`.
 
 - Order: `customer_id`, `status` (`pending`|`completed`|`cancelled`), `total_amount`.
 - OrderItem: `product_id`, `quantity`, `discount_percent`, `unit_price`, `total_price`.
-- Método `Order::recalculateTotalFromItems()`.
+- Accesor `discounted_total` y helper `LineItemTotals`.
+- Método `Order::recalculateTotalFromItems()` (suma con descuento por línea).
 
 ### Invoice / InvoiceItem
 
 - Invoice: `customer_id`, `order_id` (opcional), `invoice_number` (unique), `status` (`draft`|`issued`|`paid`), `total_amount`, `issued_at`.
-- InvoiceItem: `product_id` (nullable on delete), `description`, cantidades e importes.
+- Métodos: `recalculateTotalFromItems()`, `paidAmount()`, `remainingAmount()`, `canRegisterPayment()`.
+- InvoiceItem: `product_id`, `description`, `quantity`, `unit_price`, `discount_percent`, `total_price`.
+- Accesor `discounted_total`.
 
-### Payment
+### PaymentMethod / Payment (polimórfico)
 
-`customer_id`, `invoice_id` (opcional), `amount`, `payment_method`, `paid_at`.
+**PaymentMethod** (`payment_methods`): `name`, `slug` (unique), `detail_type`, `is_active`, `sort_order`.
+
+Tipos de detalle (`detail_type` → morph map):
+
+| Tipo | Tabla / modelo | Campos clave |
+|------|----------------|--------------|
+| `bank_transfer` | `BankTransferPaymentDetail` | `transaction_number` (obligatorio), `bank_reference` |
+| `card` | `CardPaymentDetail` | `authorization_code`, `card_last_four` |
+| `cash` | `CashPaymentDetail` | `notes` |
+| `bizum` | `BizumPaymentDetail` | `operation_code`, `phone` |
+| `cheque` | `ChequePaymentDetail` | `cheque_number` (obligatorio), `bank_name` |
+| `generic` | `GenericPaymentDetail` | `notes` |
+
+**Payment** (`payments`): `customer_id`, `invoice_id`, `payment_method_id`, `detail_type`, `detail_id` (morph), `amount`, `paid_at`.
+
+- El campo legacy `payment_method` (string) fue reemplazado por `payment_method_id` + detalle polimórfico.
+- Registro vía `PaymentService::registerPayment()` / `registerInvoicePayment()`.
+- En Filament: acción **Registrar pago** en facturas emitidas; CRUD **Métodos de pago**; formularios dinámicos según `detail_type` (`PaymentDetailForm`).
 
 ### PurchaseInvoice / PurchaseInvoiceItem
 
@@ -147,8 +168,9 @@ Auth estándar + `HasRoles` + `FilamentUser`.
 | `OrderService` | Crear pedido + líneas, calcular totales y descuentos |
 | `StockService` | Descontar stock por pedido, validar existencias, registrar movimiento `out` |
 | `InvoiceService` | Factura desde pedido, evita duplicado por `order_id`, marca pedido `completed` |
-| `PaymentService` | Registrar pago, marcar factura `paid` si suma cubre total |
-| `HubSpotCompanySyncService` | Upsert customers desde HubSpot (full/incremental) |
+| `PaymentService` | Registrar pago + detalle polimórfico; marcar factura `paid` si suma cubre total |
+| `PaymentDetailService` | Crear detalle según `PaymentMethod.detail_type`; resumen legible |
+| `HubSpotCompanySyncService` | Upsert customers desde HubSpot (full/incremental/webhook) |
 
 ---
 
@@ -160,7 +182,7 @@ Todas requieren `auth` (sesión web; no Sanctum configurado).
 |--------|------|---------|
 | POST | `/api/orders` | `manage orders` |
 | POST | `/api/invoices/orders/{orderId}` | `manage invoices` |
-| POST | `/api/payments` | `manage invoices` |
+| POST | `/api/payments` | `manage invoices` — requiere `payment_method_id` + `detail` opcional |
 
 Controladores: `OrderController`, `InvoiceController`, `PaymentController`.
 
@@ -175,98 +197,106 @@ Recursos CRUD (grupo navegación **ERP**):
 | Resource | Entidad |
 |----------|---------|
 | `ProductResource` | Productos (+ soft delete avanzado) |
-| `CustomerResource` | Clientes |
+| `CustomerResource` | Clientes (+ botón sync HubSpot) |
 | `SupplierResource` | Proveedores |
-| `OrderResource` | Pedidos (Repeater con cálculo reactivo de totales) |
-| `InvoiceResource` | Facturas venta + `InvoiceItemsRelationManager` |
+| `OrderResource` | Pedidos (Repeater con descuento y cálculo reactivo) |
+| `InvoiceResource` | Facturas venta + items + pagos + acción **Registrar pago** |
+| `PaymentMethodResource` | Métodos de pago (CRUD, define tipo de detalle) |
+| `PaymentResource` | Pagos (alta + vista; sin edición de detalle) |
 | `PurchaseInvoiceResource` | Facturas compra + items |
-| `PaymentResource` | Pagos |
 | `StockMovementResource` | Movimientos stock (manual) |
 
-No hay páginas/widgets custom en `app/Filament/Pages` ni `Widgets`; usa dashboard/widgets base de Filament.
+Relation managers destacados: `InvoiceItemsRelationManager`, `PaymentsRelationManager`.
+
+**i18n:** `APP_LOCALE=es`, traducciones Filament en `lang/vendor/`. Labels de campos en recursos aún parciales (muchos autogenerados en inglés si no tienen `->label()`).
 
 ---
 
 ## Integración HubSpot
 
-**Dirección actual:** HubSpot → Laravel (unidireccional). Laravel será maestro a futuro; la estructura permite bidireccionalidad.
+**Dirección actual:** HubSpot → Laravel (unidireccional). Laravel será maestro a futuro. Doble ingreso: cron incremental + webhook + sync manual desde Filament.
 
 ### Configuración
 
-- `config/hubspot.php`
-- `.env`: `HUBSPOT_ACCESS_TOKEN`, `HUBSPOT_BASE_URL`, `HUBSPOT_PAGE_LIMIT`, `HUBSPOT_INCREMENTAL_CACHE_KEY`
-- Logs: canal `hubspot` → `storage/logs/hubspot.log`
+- `config/hubspot.php` — field map, `erp_only_fields`, webhook, `client_secret`
+- `.env`: `HUBSPOT_ACCESS_TOKEN` (debe empezar por `pat-eu1-` o `pat-na1-`), `HUBSPOT_CLIENT_SECRET`, `HUBSPOT_SKIP_WEBHOOK_SIGNATURE`, `HUBSPOT_BASE_URL`, `HUBSPOT_PAGE_LIMIT`, `HUBSPOT_INCREMENTAL_CACHE_KEY`
+- Logs: canal `hubspot` → `storage/logs/hubspot-YYYY-MM-DD.log`
+- Errores de jobs también pueden aparecer en `storage/logs/laravel.log`
 
 ### Estructura (`app/Integrations/HubSpot/`)
 
 | Clase | Rol |
 |-------|-----|
-| `HubSpotClient` | HTTP wrapper: `getCompanies()`, `getCompanyById()`, paginación `after`, retry/backoff, búsqueda incremental por `hs_lastmodifieddate` |
+| `HubSpotClient` | HTTP wrapper, validación token, retry/backoff, mensajes 401/403 |
 | `HubSpotCompanyService` | Paginación full e incremental |
-| `HubSpotMapper` | Company → Customer (`name`, `phone`, `domain`→`website`, `city`, `address`, `zip`→`postal_code`, `country`, timestamps HubSpot) |
+| `HubSpotMapper` | Company → Customer (config-driven desde `config/hubspot.php`) |
+| `HubSpotCompanyPropertyList` | Propiedades sincronizadas |
+| `HubSpotWebhookSignatureValidator` | Validación firma webhook v3 |
 
 ### Sync (`app/Services/HubSpotCompanySyncService.php`)
 
-- `syncAllCompanies()` / `syncIncremental()`
-- `upsertFromHubSpot(array $companyData)`:
-  1. Buscar por `hubspot_company_id`
-  2. Si no existe, match opcional por `website` sin `hubspot_company_id`
-  3. Create o update selectivo
-  4. Hook `shouldPreserveManualValue()` preparado para no sobrescribir campos editados en ERP (hoy retorna `false`)
+- `syncAllCompanies()` / `syncIncremental()` / `syncByHubSpotCompanyId()`
+- `upsertFromHubSpot()`: match por `hubspot_company_id`, fallback `website`, guarda `hubspot_properties` JSON
+- `shouldPreserveManualValue()` preparado para campos `erp_only_fields` (lógica aún mínima)
 
-Timestamp global incremental en cache (`hubspot.companies.last_incremental_sync_at`).
-
-### Jobs y comando
+### Jobs, comandos y webhook
 
 | Componente | Descripción |
 |------------|-------------|
-| `SyncHubSpotCompaniesJob` | Pagina HubSpot, despacha un `SyncSingleCompanyJob` por company |
-| `SyncSingleCompanyJob` | Upsert individual; retries con backoff |
-| `hubspot:sync-companies` | `--full` o `--incremental` (default incremental si no se pasa `--full`) |
+| `SyncHubSpotCompaniesJob` | Pagina HubSpot, despacha `SyncSingleCompanyJob` por company |
+| `SyncSingleCompanyJob` | Upsert individual; 5 reintentos; log en canal `hubspot` por intento |
+| `SyncSingleCompanyByIdJob` | Fetch + upsert de una company por ID |
+| `ProcessHubSpotWebhookJob` | Procesa eventos webhook → `SyncSingleCompanyByIdJob` |
+| `hubspot:sync-companies` | `--full` o `--incremental` |
+| `hubspot:health-check` | Valida token + acceso API companies |
+| `POST /api/webhooks/hubspot` | Webhook HubSpot (firma + cola) |
 
 ### Flujo operativo
 
 ```
-hubspot:sync-companies
-  → SyncHubSpotCompaniesJob (cola DB)
-    → N × SyncSingleCompanyJob
-      → HubSpotCompanySyncService::upsertFromHubSpot()
+Manual/cron: hubspot:sync-companies → SyncHubSpotCompaniesJob → N × SyncSingleCompanyJob
+Webhook: POST /api/webhooks/hubspot → ProcessHubSpotWebhookJob → SyncSingleCompanyByIdJob
+Filament: botón "Sincronizar desde HubSpot" en CustomerResource → SyncHubSpotCompaniesJob
 ```
 
-**Sin `queue:work` activo los jobs se encolan pero no se procesan.** El log solo registra dispatch del comando y fallos; no hay log de “job started” por defecto.
+**Sin `queue:work` activo los jobs se encolan pero no se procesan.**
 
 ### Troubleshooting HubSpot
 
-1. Docker/Sail corriendo: `./vendor/bin/sail up -d`
-2. Worker: `./vendor/bin/sail artisan queue:work -v`
-3. Token válido en `HUBSPOT_ACCESS_TOKEN`
-4. Migración HubSpot aplicada: `add_hubspot_fields_to_customers_table`
-5. Ver cola: `DB::table('jobs')->count()`
-6. Fallos: `./vendor/bin/sail artisan queue:failed`
-7. Clientes: `Customer::count()`
+1. Docker/Sail: `./vendor/bin/sail up -d`
+2. Worker: `./vendor/bin/sail artisan queue:restart && ./vendor/bin/sail artisan queue:work -v`
+3. Token: Private App `pat-eu1-...` / `pat-na1-...` (no Developer API key `eu1-...`)
+4. Scope: `crm.objects.companies.read` mínimo
+5. Migraciones: `add_hubspot_fields_to_customers_table` + `add_hubspot_properties_to_customers_table`
+6. `./vendor/bin/sail artisan hubspot:health-check` debe pasar antes de sync
+7. Cola: `DB::table('jobs')->count()` / `queue:failed`
+8. Logs: `storage/logs/hubspot-*.log` y `laravel.log`
 
 ---
 
 ## Migraciones relevantes
 
-- `create_customers_table` — base clientes
-- `add_hubspot_fields_to_customers_table` — campos HubSpot + `website`, `city`, `postal_code`, `country`
+- `create_customers_table`, `add_hubspot_fields_to_customers_table`, `add_hubspot_properties_to_customers_table`
 - `create_products_table`, `create_orders_table`, `create_order_items_table`, `add_discount_percent_to_order_items_table`
-- `create_invoices_table`, `create_invoice_items_table`, `create_payments_table`
+- `create_invoices_table`, `create_invoice_items_table`, `add_discount_percent_to_invoice_items_table`
+- `create_payments_table`, `create_payment_methods_and_details_tables`, `add_payment_method_polymorphism_to_payments_table`
 - `create_suppliers_table`, `create_purchase_invoices_table`, `create_purchase_invoice_items_table`
-- `create_stock_movements_table`
-- `create_permission_tables` (Spatie)
+- `create_stock_movements_table`, `create_permission_tables` (Spatie)
 - Tablas Laravel: `users`, `sessions`, `jobs`, `failed_jobs`, `cache`, etc.
 
 ---
 
 ## Seeders
 
-`DatabaseSeeder` ejecuta:
+| Seeder | Uso |
+|--------|-----|
+| `DatabaseSeeder` | `RolesAndPermissionsSeeder`, `AdminUserSeeder`, `CustomersSeeder`, `ProductsSeeder` |
+| `AdminUserSeeder` | Usuario admin Filament |
+| `PaymentMethodSeeder` | Métodos de pago por defecto (también se crean en migración) |
+| `FacturasSeeder` | Facturas históricas HORECA (manual: `db:seed --class=FacturasSeeder`) |
+| `ProductosAtamisqueSeeder` | Catálogo Atamisque (manual) |
 
-1. `RolesAndPermissionsSeeder`
-2. `CustomersSeeder`
-3. `ProductsSeeder`
+`FacturasSeeder` no está en `DatabaseSeeder` por defecto.
 
 ---
 
@@ -274,14 +304,18 @@ hubspot:sync-companies
 
 ```
 app/
-├── Console/Commands/SyncHubSpotCompaniesCommand.php
-├── Filament/Resources/          # 8 recursos CRUD
-├── Http/Controllers/            # API + Auth (Breeze) + Profile
-├── Integrations/HubSpot/        # Cliente, mapper, company service
-├── Jobs/                        # SyncHubSpotCompaniesJob, SyncSingleCompanyJob
-├── Models/                      # 11 modelos dominio + User
-├── Providers/Filament/          # AdminPanelProvider
-└── Services/                    # Order, Invoice, Payment, Stock, HubSpot sync
+├── Console/Commands/          # hubspot:sync-companies, hubspot:health-check
+├── Filament/
+│   ├── Forms/PaymentDetailForm.php
+│   └── Resources/             # 9 recursos CRUD + relation managers
+├── Http/Controllers/          # API + Auth + HubSpotWebhookController
+├── Integrations/HubSpot/
+├── Jobs/                      # Sync*, ProcessHubSpotWebhookJob
+├── Models/
+│   └── PaymentDetails/        # Detalles polimórficos de pago
+├── Providers/Filament/
+├── Services/                  # Order, Invoice, Payment, PaymentDetail, Stock, HubSpot
+└── Support/                   # LineItemTotals, PaymentDetailType
 
 config/hubspot.php
 routes/web.php, api.php, auth.php, console.php
@@ -309,16 +343,139 @@ HUBSPOT_BASE_URL=https://api.hubapi.com
 HUBSPOT_PAGE_LIMIT=100
 ```
 
+HUBSPOT_ACCESS_TOKEN=          # pat-eu1-... o pat-na1-...
+HUBSPOT_CLIENT_SECRET=         # firma webhooks
+HUBSPOT_SKIP_WEBHOOK_SIGNATURE=false
+HUBSPOT_BASE_URL=https://api.hubapi.com
+HUBSPOT_PAGE_LIMIT=100
+```
+
 ---
 
-## Deuda técnica / puntos de atención
+## Fallas conocidas y riesgos operativos
 
-- `StockMovement`: `reference_type/id` sin relación `morphTo` explícita.
-- Permisos Spatie no aplicados por recurso en Filament (solo `canAccessPanel` con rol `admin`).
-- API autenticada con guard `web` (sesión), no token API.
-- HubSpot: logs mínimos en éxito; mejorar trazabilidad si hace falta operación.
-- `shouldPreserveManualValue()` listo pero sin lógica de protección de campos aún.
-- Breeze sigue en el proyecto; rutas legacy redirigen a Filament.
+Problemas que ya ocurrieron o pueden repetirse en desarrollo/producción.
+
+### Infraestructura y entorno
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| `could not translate host name "pgsql"` | `php artisan` fuera de Sail | Usar `./vendor/bin/sail artisan ...` |
+| `iconv: iconv_open` en terminal | Shell/macOS locale | Ignorar; no afecta Laravel |
+| Jobs en cola pero nada cambia | Sin `queue:work` | `./vendor/bin/sail artisan queue:work -v` |
+| `failed_jobs` vacío pero worker muestra FAIL | Reintentos pendientes (`$tries` > 1) | Esperar o revisar `hubspot-*.log` / `laravel.log` |
+| Migraciones no aplicadas | `migrate` no corrido tras pull | `./vendor/bin/sail artisan migrate` |
+
+### HubSpot
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| 401 en sync | Token incorrecto (`eu1-...` en vez de `pat-eu1-...`) | Private App → Auth → Show token |
+| `hubspot:health-check` falla formato | Developer API key en `.env` | Reemplazar por access token Private App |
+| 127 jobs FAIL sin log en `hubspot` | Error en `laravel.log` (ej. columna faltante) | `migrate`; revisar `laravel.log` |
+| Clientes no actualizan en tiempo real | Webhook no registrado en HubSpot o worker parado | Configurar webhook + `queue:work` |
+| Webhook 401/403 | `HUBSPOT_CLIENT_SECRET` incorrecto o firma deshabilitada mal | Revisar secret y `HUBSPOT_SKIP_WEBHOOK_SIGNATURE` |
+
+### Pagos y facturas
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| Factura `paid` sin registro en `payments` | `FacturasSeeder` marca status sin crear pagos | Backfill manual o comando de reconciliación (pendiente) |
+| No aparece botón **Registrar pago** | Factura en `draft` o ya `paid` | Emitir factura primero (`issued`) |
+| Error al pagar con transferencia | Falta `transaction_number` | Completar campo en modal de pago |
+| `payment_method` column not found | Migración polimórfica pendiente | `./vendor/bin/sail artisan migrate` |
+| `balance` del cliente incorrecto | Suma todos los pagos vs solo facturas `issued` | Revisar lógica en `Customer::getBalanceAttribute()` |
+
+### Datos y seeders
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| Facturas omitidas en seeder | Cliente sin `hubspot_company_id` | Sync HubSpot antes de `FacturasSeeder` |
+| Duplicados al re-seed facturas | Seeder evita duplicar por `invoice_number` | Normal; borrar datos si se quiere reimportar |
+| Descuentos mal en facturas viejas | Antes estaban en texto `(desc 5%)` en descripción | Re-seed tras fix de `discount_percent` |
+
+### UI / Filament
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| Labels en inglés (Tax id, Created at) | Campos sin `->label()` en resources | Centralizar en `lang/es/erp.php` o labels explícitos |
+| Widget Filament info en inglés | Widget por defecto de Filament | Quitar `FilamentInfoWidget` del panel |
+| Pagos no editables | Diseño intencional (auditoría) | Solo crear/ver/eliminar |
+
+---
+
+## Backlog técnico
+
+Priorizado por impacto. No es roadmap de producto; es deuda y mejoras de ingeniería.
+
+### P0 — Estabilidad operativa
+
+- [ ] **Supervisor / worker permanente** en Docker y producción (`queue:work` + `schedule:work`)
+- [ ] **Comando backfill pagos** para facturas `paid` del seeder sin `payments` asociados
+- [ ] **Verificar migraciones** `payment_methods` aplicadas en todos los entornos
+- [ ] **Registrar webhooks HubSpot** apuntando a `/api/webhooks/hubspot` en producción
+- [ ] **Health-check pre-deploy**: `hubspot:health-check`, `migrate:status`, worker activo
+
+### P1 — Integridad de datos y negocio
+
+- [ ] **Pagos parciales** (múltiples pagos hasta cubrir total; hoy el modal registra el saldo completo)
+- [ ] **Revertir estado factura** si se elimina un pago (`paid` → `issued`)
+- [ ] **Protección campos ERP** en sync HubSpot (`erp_only_fields` + `shouldPreserveManualValue()` real)
+- [ ] **Validar stock** antes de completar pedido / emitir factura (hoy parcial en `StockService`)
+- [ ] **Unificar cálculo de balance** cliente (facturas emitidas vs pagadas, pagos sin factura)
+- [ ] **Tests** para `PaymentService`, `LineItemTotals`, `HubSpotMapper`, descuentos por línea
+
+### P2 — Permisos, roles y seguridad
+
+- [ ] **Roles finales**: `superadmin` / `operator` / `viewer` (hoy: `admin`, `sales`, `warehouse`)
+- [ ] **Permisos Spatie por recurso Filament** (no solo `canAccessPanel` con rol `admin`)
+- [ ] **Sanctum / API tokens** si la API se consume fuera del browser
+- [ ] **Políticas** `PaymentPolicy`, `InvoicePolicy` para acciones sensibles (registrar pago, anular)
+- [ ] **Auditoría** de quién registró un pago (columna `created_by` / activity log)
+
+### P3 — HubSpot y CRM
+
+- [ ] **Logs de progreso** en sync (páginas procesadas, created/updated/failed por job)
+- [ ] **Dashboard sync** en Filament (último sync, jobs pendientes, errores)
+- [ ] **Reducir o coordinar** cron 15 min vs webhooks (evitar sync redundante)
+- [ ] **Bidireccional Laravel → HubSpot** cuando ERP sea maestro
+- [ ] **MCP HubSpot** solo para exploración en dev; producción sigue REST + webhooks
+
+### P4 — UX Filament e i18n
+
+- [ ] **`lang/es/erp.php`** — diccionario central de campos, estados, navegación
+- [ ] **Labels completos** en todos los resources y relation managers
+- [ ] **`formatStateUsing`** en badges de estado (`pending`, `issued`, `horeca`, etc.)
+- [ ] **Quitar `FilamentInfoWidget`** y widgets innecesarios del dashboard
+- [ ] **Fechas Carbon** en formato español consistente en tablas
+
+### P5 — Pagos avanzados
+
+- [ ] **Nuevos tipos polimórficos** sin migración manual (hoy cada tipo = tabla + modelo + entrada en `PaymentDetailType`)
+- [ ] **Edición controlada** de detalle de pago (solo admin, con auditoría)
+- [ ] **Conciliación bancaria** importando CSV y matcheando `transaction_number`
+- [ ] **Integración TPV / pasarela** (futuro ecommerce Shopify)
+
+### P6 — Limpieza y arquitectura
+
+- [ ] **`StockMovement`**: relación `morphTo` explícita en `reference`
+- [ ] **Retirar Breeze** o documentar como solo fallback de auth
+- [ ] **Vistas Blade legacy** (`invoices/index`, `show`) — actualizar API pagos o deprecar
+- [ ] **Módulo remitos** (precursor: `Order`; no existe aún)
+- [ ] **Despliegue Laravel Cloud** + PostgreSQL gestionado
+- [ ] **Shopify** como canal ecommerce secundario (futuro)
+
+---
+
+## Deuda técnica resumida (quick reference)
+
+- `StockMovement`: `reference_type/id` sin `morphTo` en modelo.
+- Permisos Spatie no aplicados por recurso en Filament.
+- API con guard `web` (sesión), no tokens.
+- Facturas seeder: `paid` sin `payments` correspondientes.
+- Tipos de pago polimórficos: extensión requiere código (no solo CRUD).
+- Breeze + vistas Blade legacy coexisten con Filament.
+- i18n parcial en UI de administración.
 
 ---
 
@@ -327,27 +484,23 @@ HUBSPOT_PAGE_LIMIT=100
 ```bash
 # Desarrollo
 ./vendor/bin/sail up -d
-./vendor/bin/sail artisan migrate --seed
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail artisan db:seed
 ./vendor/bin/sail artisan queue:work -v
 ./vendor/bin/sail artisan schedule:work
 
 # HubSpot
+./vendor/bin/sail artisan hubspot:health-check
 ./vendor/bin/sail artisan hubspot:sync-companies --full
 ./vendor/bin/sail artisan hubspot:sync-companies --incremental
+./vendor/bin/sail artisan queue:restart
 ./vendor/bin/sail artisan queue:failed
+
+# Datos
+./vendor/bin/sail artisan db:seed --class=PaymentMethodSeeder
+./vendor/bin/sail artisan db:seed --class=FacturasSeeder
 
 # Calidad
 ./vendor/bin/sail artisan test
 ./vendor/bin/sail artisan pint
 ```
-
----
-
-## Próximos pasos sugeridos
-
-1. Worker permanente (Supervisor) en contenedor/producción.
-2. Comando `hubspot:health-check` (token + DB + jobs pendientes).
-3. Logs de progreso en jobs HubSpot (páginas, upserts, errores por company).
-4. Política real de campos protegidos en sync bidireccional futuro.
-5. Restricción Filament por permisos Spatie además de rol `admin`.
-6. Sanctum/API tokens si la API se consume fuera del browser.

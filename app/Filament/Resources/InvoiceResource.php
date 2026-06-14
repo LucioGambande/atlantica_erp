@@ -7,7 +7,9 @@ use App\Filament\Resources\InvoiceResource\RelationManagers;
 use App\Filament\Forms\PaymentDetailForm;
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Services\InvoiceService;
 use App\Services\PaymentService;
+use RuntimeException;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -56,6 +58,25 @@ class InvoiceResource extends Resource
         ];
     }
 
+    public static function cancelInvoice(Invoice $invoice): void
+    {
+        try {
+            $creditNote = app(InvoiceService::class)->cancelInvoice($invoice);
+
+            Notification::make()
+                ->title('Factura cancelada')
+                ->body("Nota de crédito {$creditNote->invoice_number} creada.")
+                ->success()
+                ->send();
+        } catch (RuntimeException $exception) {
+            Notification::make()
+                ->title('No se pudo cancelar la factura')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
     public static function registerInvoicePayment(Invoice $invoice, array $data): void
     {
         try {
@@ -78,6 +99,11 @@ class InvoiceResource extends Resource
                 ->danger()
                 ->send();
         }
+    }
+
+    public static function canDelete($record): bool
+    {
+        return false;
     }
 
     public static function form(Form $form): Form
@@ -107,7 +133,26 @@ class InvoiceResource extends Resource
                     ->label('Número de factura')
                     ->required()
                     ->maxLength(255)
-                    ->unique(column: 'invoice_number', ignoreRecord: true),
+                    ->unique(column: 'invoice_number', ignoreRecord: true)
+                    ->disabled(fn (?Invoice $record): bool => $record !== null),
+                Forms\Components\Select::make('document_type')
+                    ->label('Tipo de documento')
+                    ->options([
+                        'invoice' => 'Factura',
+                        'credit_note' => 'Nota de crédito',
+                    ])
+                    ->default('invoice')
+                    ->disabled()
+                    ->dehydrated(),
+                Forms\Components\Select::make('credited_invoice_id')
+                    ->label('Factura rectificada')
+                    ->relationship('creditedInvoice', 'invoice_number')
+                    ->disabled()
+                    ->visible(fn (?Invoice $record): bool => $record?->isCreditNote() ?? false),
+                Forms\Components\Placeholder::make('cancelled_notice')
+                    ->label('Estado de cancelación')
+                    ->content(fn (?Invoice $record): string => $record?->cancelled_at?->format('d/m/Y H:i') ?? '')
+                    ->visible(fn (?Invoice $record): bool => $record?->isCancelled() ?? false),
                 Forms\Components\Select::make('status')
                     ->label('Estado')
                     ->options([
@@ -125,8 +170,20 @@ class InvoiceResource extends Resource
                     ->label('Total')
                     ->required()
                     ->numeric()
-                    ->minValue(0)
-                    ->step(0.01),
+                    ->step(0.01)
+                    ->disabled(),
+                Forms\Components\Checkbox::make('generates_stock_movement')
+                    ->label('Genera movimiento de stock')
+                    ->default(false)
+                    ->disabled(fn (?Invoice $record): bool => $record !== null && (
+                        $record->stock_movements_recorded
+                        || $record->isCreditNote()
+                        || $record->isCancelled()
+                    )),
+                Forms\Components\Placeholder::make('stock_movements_recorded_notice')
+                    ->label('Stock')
+                    ->content('Movimientos de stock registrados')
+                    ->visible(fn (?Invoice $record): bool => $record?->stock_movements_recorded ?? false),
                 Forms\Components\DateTimePicker::make('issued_at')
                     ->label('Fecha de emisión')
                     ->nullable(),
@@ -141,6 +198,18 @@ class InvoiceResource extends Resource
                     ->label('Número')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('document_type')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'invoice' => 'Factura',
+                        'credit_note' => 'Nota crédito',
+                        default => $state,
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'credit_note' => 'danger',
+                        default => 'primary',
+                    }),
                 Tables\Columns\TextColumn::make('customer.name')
                     ->label('Cliente')
                     ->searchable()
@@ -151,19 +220,25 @@ class InvoiceResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'draft' => 'Borrador',
-                        'issued' => 'Emitida',
-                        'paid' => 'Pagada',
-                        default => $state,
+                    ->formatStateUsing(fn (Invoice $record): string => match (true) {
+                        $record->isCancelled() => 'Cancelada',
+                        $record->status === 'draft' => 'Borrador',
+                        $record->status === 'issued' => 'Emitida',
+                        $record->status === 'paid' => 'Pagada',
+                        default => $record->status,
                     })
-                    ->color(fn (string $state): string => match ($state) {
-                        'draft' => 'gray',
-                        'issued' => 'warning',
-                        'paid' => 'success',
+                    ->color(fn (Invoice $record): string => match (true) {
+                        $record->isCancelled() => 'danger',
+                        $record->status === 'draft' => 'gray',
+                        $record->status === 'issued' => 'warning',
+                        $record->status === 'paid' => 'success',
                         default => 'gray',
                     })
                     ->searchable(),
+                Tables\Columns\IconColumn::make('generates_stock_movement')
+                    ->label('Stock')
+                    ->boolean()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Total')
                     ->money('EUR')
@@ -213,14 +288,18 @@ class InvoiceResource extends Resource
                     ->visible(fn (Invoice $record): bool => $record->canRegisterPayment())
                     ->form(fn (Invoice $record): array => static::markAsPaidFormSchema($record))
                     ->action(fn (Invoice $record, array $data) => static::registerInvoicePayment($record, $data)),
+                Tables\Actions\Action::make('cancelInvoice')
+                    ->label('Cancelar factura')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Cancelar factura')
+                    ->modalDescription('Se creará una nota de crédito con importes negativos. La factura original quedará cancelada.')
+                    ->visible(fn (Invoice $record): bool => $record->canBeCancelled())
+                    ->action(fn (Invoice $record) => static::cancelInvoice($record)),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->bulkActions([]);
     }
 
     public static function getRelations(): array

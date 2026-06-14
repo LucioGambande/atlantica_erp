@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Carbon::setLocale(config('app.locale'));
 
-        Relation::enforceMorphMap([
+        Relation::morphMap([
             PaymentDetailType::BANK_TRANSFER => BankTransferPaymentDetail::class,
             PaymentDetailType::CARD => CardPaymentDetail::class,
             PaymentDetailType::CASH => CashPaymentDetail::class,
