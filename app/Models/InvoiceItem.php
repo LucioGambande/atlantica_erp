@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\LineItemTotals;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +18,7 @@ class InvoiceItem extends Model
         'description',
         'quantity',
         'unit_price',
+        'discount_percent',
         'total_price',
     ];
 
@@ -24,8 +27,18 @@ class InvoiceItem extends Model
         return [
             'quantity' => 'integer',
             'unit_price' => 'decimal:2',
+            'discount_percent' => 'decimal:2',
             'total_price' => 'decimal:2',
         ];
+    }
+
+    protected function discountedTotal(): Attribute
+    {
+        return Attribute::get(fn (): float => LineItemTotals::discountedLineTotal(
+            (float) $this->unit_price,
+            (int) $this->quantity,
+            (float) $this->discount_percent,
+        ));
     }
 
     public function invoice(): BelongsTo

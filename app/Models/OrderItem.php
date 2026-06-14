@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\LineItemTotals;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +29,15 @@ class OrderItem extends Model
             'unit_price' => 'decimal:2',
             'total_price' => 'decimal:2',
         ];
+    }
+
+    protected function discountedTotal(): Attribute
+    {
+        return Attribute::get(fn (): float => LineItemTotals::discountedLineTotal(
+            (float) $this->unit_price,
+            (int) $this->quantity,
+            (float) $this->discount_percent,
+        ));
     }
 
     public function order(): BelongsTo

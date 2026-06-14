@@ -42,4 +42,17 @@ class Invoice extends Model
     {
         return $this->hasMany(InvoiceItem::class);
     }
+
+    public function recalculateTotalFromItems(): void
+    {
+        $this->loadMissing('invoiceItems');
+
+        $total = $this->invoiceItems->sum(
+            fn (InvoiceItem $item): float => $item->discounted_total,
+        );
+
+        $this->update([
+            'total_amount' => round($total, 2),
+        ]);
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Support\LineItemTotals;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -36,8 +37,7 @@ class OrderService
 
                 $unitPrice = (float) ($item['unit_price'] ?? $product->sale_price);
                 $discountPercent = (float) ($item['discount_percent'] ?? 0);
-                $discountPercent = max(0, min(100, $discountPercent));
-                $totalPrice = round($quantity * $unitPrice * (1 - $discountPercent / 100), 2);
+                $totalPrice = LineItemTotals::discountedLineTotal($unitPrice, $quantity, $discountPercent);
 
                 $order->orderItems()->create([
                     'product_id' => $product->id,

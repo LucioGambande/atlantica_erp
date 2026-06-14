@@ -43,9 +43,12 @@ class InvoiceService
                     'description' => $orderItem->product?->name ?? 'Order item',
                     'quantity' => $orderItem->quantity,
                     'unit_price' => $orderItem->unit_price,
+                    'discount_percent' => $orderItem->discount_percent,
                     'total_price' => $orderItem->total_price,
                 ]);
             }
+
+            $invoice->recalculateTotalFromItems();
 
             if ($order->status === 'pending') {
                 $order->update([

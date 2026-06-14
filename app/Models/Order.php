@@ -36,8 +36,14 @@ class Order extends Model
 
     public function recalculateTotalFromItems(): void
     {
+        $this->loadMissing('orderItems');
+
+        $total = $this->orderItems->sum(
+            fn (OrderItem $item): float => $item->discounted_total,
+        );
+
         $this->update([
-            'total_amount' => round((float) $this->orderItems()->sum('total_price'), 2),
+            'total_amount' => round($total, 2),
         ]);
     }
 }

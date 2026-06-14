@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Order;
 use App\Models\Product;
+use App\Support\LineItemTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -49,9 +50,7 @@ class OrderResource extends Resource
         $qty = max(0, (int) $get('quantity'));
         $unit = max(0, (float) $get('unit_price'));
         $disc = (float) ($get('discount_percent') ?? 0);
-        $disc = max(0, min(100, $disc));
-        $lineTotal = round($qty * $unit * (1 - $disc / 100), 2);
-        $set('total_price', $lineTotal);
+        $set('total_price', LineItemTotals::discountedLineTotal($unit, $qty, $disc));
     }
 
     public static function form(Form $form): Form
@@ -150,18 +149,6 @@ class OrderResource extends Resource
                                     ->afterStateUpdated(function (Set $set, Get $get): void {
                                         static::recalculateLineTotal($set, $get);
                                     }),
-                                Forms\Components\TextInput::make('discount_percent')
-                                    ->label('Dto.%')
-                                    ->numeric()
-                                    ->default(0)
-                                    ->minValue(0)
-                                    ->maxValue(100)
-                                    ->suffix('%')
-                                    ->columnSpan(1)
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(function (Set $set, Get $get): void {
-                                        static::recalculateLineTotal($set, $get);
-                                    }),
                                 Forms\Components\TextInput::make('unit_price')
                                     ->label('P. unit.')
                                     ->required()
@@ -170,6 +157,18 @@ class OrderResource extends Resource
                                     ->step(0.01)
                                     ->prefix('€')
                                     ->columnSpan(2)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                        static::recalculateLineTotal($set, $get);
+                                    }),
+                                Forms\Components\TextInput::make('discount_percent')
+                                    ->label('Dto. (%)')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->minValue(0)
+                                    ->maxValue(100)
+                                    ->suffix('%')
+                                    ->columnSpan(1)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function (Set $set, Get $get): void {
                                         static::recalculateLineTotal($set, $get);
