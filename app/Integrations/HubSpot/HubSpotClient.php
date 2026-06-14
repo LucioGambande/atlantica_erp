@@ -91,10 +91,22 @@ class HubSpotClient
 
     protected function request(): PendingRequest
     {
-        $token = (string) config('hubspot.access_token');
+        $token = trim((string) config('hubspot.access_token'));
 
         if ($token === '') {
             throw new RuntimeException('HUBSPOT_ACCESS_TOKEN is not configured.');
+        }
+
+        if (! str_starts_with($token, 'pat-')) {
+            $hint = preg_match('/^(eu1|na1)-/', $token)
+                ? 'You may have pasted a Developer API key (eu1-/na1-); use the Private App access token (pat-eu1-/pat-na1-) instead. '
+                : '';
+
+            throw new RuntimeException(
+                'HUBSPOT_ACCESS_TOKEN does not look like a Private App token (expected prefix pat-na1- or pat-eu1-). '
+                .$hint
+                .'Settings → Integrations → Private Apps → Auth → Show token.'
+            );
         }
 
         return Http::baseUrl((string) config('hubspot.base_url'))
@@ -116,5 +128,24 @@ class HubSpotClient
         }
 
         return in_array($exception->response->status(), [429, 500, 502, 503, 504], true);
+    }
+
+    /**
+     * @throws RuntimeException
+     */
+    public static function explainHttpFailure(RequestException $exception): string
+    {
+        $status = $exception->response?->status();
+
+        if ($status === 401) {
+            return 'HubSpot rejected the access token (401). Use a full Private App token (pat-eu1-... or pat-na1-...) '
+                .'with scope crm.objects.companies.read, then restart queue:work after updating .env.';
+        }
+
+        if ($status === 403) {
+            return 'HubSpot denied access (403). Check that the Private App has scope crm.objects.companies.read.';
+        }
+
+        return $exception->getMessage();
     }
 }

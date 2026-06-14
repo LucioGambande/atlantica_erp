@@ -29,18 +29,28 @@ class SyncSingleCompanyJob implements ShouldQueue
 
     public function handle(HubSpotCompanySyncService $syncService): void
     {
-        $result = $syncService->upsertFromHubSpot($this->companyData);
+        try {
+            $result = $syncService->upsertFromHubSpot($this->companyData);
 
-        if ($result['failed'] > 0) {
-            throw new \RuntimeException('Single HubSpot company sync failed.');
+            if ($result['failed'] > 0) {
+                throw new \RuntimeException('Single HubSpot company sync failed.');
+            }
+        } catch (Throwable $exception) {
+            Log::channel('hubspot')->error('SyncSingleCompanyJob attempt failed.', [
+                'hubspot_company_id' => $this->companyData['id'] ?? null,
+                'attempt' => $this->attempts(),
+                'max_tries' => $this->tries,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
         }
     }
 
     public function failed(Throwable $exception): void
     {
-        Log::channel('hubspot')->error('SyncSingleCompanyJob failed.', [
+        Log::channel('hubspot')->error('SyncSingleCompanyJob permanently failed after all retries.', [
             'hubspot_company_id' => $this->companyData['id'] ?? null,
-            'payload' => $this->companyData,
             'error' => $exception->getMessage(),
         ]);
     }

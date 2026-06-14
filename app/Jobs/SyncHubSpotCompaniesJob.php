@@ -2,11 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Integrations\HubSpot\HubSpotClient;
 use App\Integrations\HubSpot\HubSpotCompanyService;
 use App\Services\HubSpotCompanySyncService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -62,9 +64,13 @@ class SyncHubSpotCompaniesJob implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
+        $message = $exception instanceof RequestException
+            ? HubSpotClient::explainHttpFailure($exception)
+            : $exception->getMessage();
+
         Log::channel('hubspot')->error('SyncHubSpotCompaniesJob failed.', [
             'mode' => $this->full ? 'full' : 'incremental',
-            'error' => $exception->getMessage(),
+            'error' => $message,
         ]);
     }
 }
