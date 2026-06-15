@@ -6,7 +6,7 @@ use App\Filament\Resources\InvoiceResource\Pages;
 use App\Filament\Resources\InvoiceResource\RelationManagers;
 use App\Filament\Forms\PaymentDetailForm;
 use App\Models\Invoice;
-use App\Models\Order;
+use App\Services\InvoiceNumberGenerator;
 use App\Services\InvoiceService;
 use App\Services\PaymentService;
 use RuntimeException;
@@ -18,6 +18,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
 use InvalidArgumentException;
 
@@ -115,26 +116,32 @@ class InvoiceResource extends Resource
                     ->relationship('customer', 'name')
                     ->required()
                     ->searchable()
-                    ->preload(),
-                Forms\Components\Select::make('order_id')
-                    ->label('Pedido')
-                    ->relationship(
-                        name: 'order',
-                        titleAttribute: 'id',
-                        modifyQueryUsing: fn (Builder $query) => $query->with('customer'),
-                    )
-                    ->getOptionLabelFromRecordUsing(
-                        fn (Order $record): string => '#'.$record->id.' — '.($record->customer?->name ?? '')
-                    )
-                    ->searchable()
                     ->preload()
-                    ->nullable(),
+                    ->disabled(fn (?Invoice $record): bool => $record !== null),
+                Forms\Components\Placeholder::make('linked_order')
+                    ->label('Pedido vinculado')
+                    ->content(function (?Invoice $record): HtmlString|string {
+                        if ($record?->order_id === null) {
+                            return 'Sin pedido. Las facturas desde pedido se crean con «Facturar pedido» en el pedido.';
+                        }
+
+                        $order = $record->order;
+                        $url = OrderResource::getUrl('edit', ['record' => $order]);
+
+                        return new HtmlString(
+                            '<a href="'.e($url).'" class="text-primary-600 hover:underline font-medium">'
+                            .'Pedido #'.$order->id
+                            .'</a>'
+                        );
+                    })
+                    ->visible(fn (?Invoice $record): bool => $record !== null),
                 Forms\Components\TextInput::make('invoice_number')
                     ->label('Número de factura')
                     ->required()
                     ->maxLength(255)
                     ->unique(column: 'invoice_number', ignoreRecord: true)
-                    ->disabled(fn (?Invoice $record): bool => $record !== null),
+                    ->default(fn (): string => app(InvoiceNumberGenerator::class)->preview())
+                    ->helperText('Se sugiere el siguiente número correlativo del año. Podés cambiarlo antes de guardar.'),
                 Forms\Components\Select::make('document_type')
                     ->label('Tipo de documento')
                     ->options([
@@ -216,6 +223,10 @@ class InvoiceResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('order.id')
                     ->label('Pedido')
+                    ->placeholder('—')
+                    ->url(fn (Invoice $record): ?string => $record->order_id
+                        ? OrderResource::getUrl('edit', ['record' => $record->order_id])
+                        : null)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')

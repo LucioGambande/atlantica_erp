@@ -4,15 +4,16 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Services\InvoiceNumberGenerator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class InvoiceService
 {
     public function __construct(
         protected StockService $stockService,
+        protected InvoiceNumberGenerator $invoiceNumberGenerator,
     ) {
     }
 
@@ -38,7 +39,7 @@ class InvoiceService
             $invoice = Invoice::create([
                 'customer_id' => $order->customer_id,
                 'order_id' => $order->id,
-                'invoice_number' => $this->generateInvoiceNumber(),
+                'invoice_number' => $this->invoiceNumberGenerator->next(),
                 'document_type' => 'invoice',
                 'status' => 'issued',
                 'total_amount' => $order->total_amount,
@@ -85,7 +86,7 @@ class InvoiceService
                 'customer_id' => $invoice->customer_id,
                 'order_id' => $invoice->order_id,
                 'credited_invoice_id' => $invoice->id,
-                'invoice_number' => $this->generateCreditNoteNumber($invoice),
+                'invoice_number' => $this->invoiceNumberGenerator->next(),
                 'document_type' => 'credit_note',
                 'status' => 'issued',
                 'total_amount' => 0,
@@ -114,27 +115,5 @@ class InvoiceService
 
             return $creditNote->load('invoiceItems.product', 'creditedInvoice');
         });
-    }
-
-    protected function generateInvoiceNumber(): string
-    {
-        do {
-            $invoiceNumber = 'INV-'.Carbon::now()->format('Ymd').'-'.Str::upper(Str::random(6));
-        } while (
-            Invoice::query()->where('invoice_number', $invoiceNumber)->exists()
-        );
-
-        return $invoiceNumber;
-    }
-
-    protected function generateCreditNoteNumber(Invoice $invoice): string
-    {
-        do {
-            $invoiceNumber = 'CN-'.Carbon::now()->format('Ymd').'-'.Str::upper(Str::random(6));
-        } while (
-            Invoice::query()->where('invoice_number', $invoiceNumber)->exists()
-        );
-
-        return $invoiceNumber;
     }
 }
