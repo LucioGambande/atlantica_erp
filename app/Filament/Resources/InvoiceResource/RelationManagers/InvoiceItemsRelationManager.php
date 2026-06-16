@@ -4,6 +4,7 @@ namespace App\Filament\Resources\InvoiceResource\RelationManagers;
 
 use App\Filament\Resources\OrderResource;
 use App\Models\Product;
+use App\Services\PriceResolutionService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -35,7 +36,8 @@ class InvoiceItemsRelationManager extends RelationManager
                         }
                         $product = Product::query()->find($state);
                         if ($product) {
-                            $set('unit_price', (float) $product->sale_price);
+                            $customer = $this->getOwnerRecord()->customer;
+                            $set('unit_price', app(PriceResolutionService::class)->resolvePrice($product, $customer));
                             if (blank($get('description'))) {
                                 $set('description', $product->name);
                             }

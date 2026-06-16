@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CustomerResource\Pages;
 use App\Models\Customer;
+use App\Models\PriceList;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -42,8 +43,17 @@ class CustomerResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->label('Nombre / razón social')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\Select::make('price_list_id')
+                    ->label('Lista de precios')
+                    ->options(fn (): array => PriceList::query()->active()->orderBy('name')->pluck('name', 'id')->all())
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->placeholder('Sin lista asignada — se usará la lista default')
+                    ->helperText('Al crear facturas y pedidos, los precios se precargarán desde esta lista.'),
                 Forms\Components\TextInput::make('tax_id')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('email')
@@ -75,6 +85,15 @@ class CustomerResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('priceList.name')
+                    ->label('Lista de precios')
+                    ->placeholder('Default')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('balance')
+                    ->label('Saldo')
+                    ->money('EUR')
+                    ->sortable()
+                    ->color(fn (Customer $record): string => (float) $record->balance > 0 ? 'danger' : 'success'),
                 Tables\Columns\TextColumn::make('tax_id')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
@@ -119,6 +138,10 @@ class CustomerResource extends Resource
                     }),
             ])
             ->actions([
+                Tables\Actions\Action::make('statement')
+                    ->label('Cuenta corriente')
+                    ->icon('heroicon-o-document-text')
+                    ->url(fn (Customer $record): string => static::getUrl('statement', ['record' => $record->getKey()])),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 Tables\Actions\ForceDeleteAction::make(),
@@ -144,6 +167,7 @@ class CustomerResource extends Resource
             'index' => Pages\ListCustomers::route('/'),
             'create' => Pages\CreateCustomer::route('/create'),
             'edit' => Pages\EditCustomer::route('/{record}/edit'),
+            'statement' => Pages\CustomerStatement::route('/{record}/statement'),
         ];
     }
 }

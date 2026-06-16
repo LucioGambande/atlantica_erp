@@ -2,8 +2,12 @@
 
 namespace App\Models;
 
+use App\Services\AccountStatementService;
+use App\Services\PriceResolutionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -12,9 +16,11 @@ class Customer extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'price_list_id',
         'name',
         'tax_id',
         'email',
+        'balance',
         'phone',
         'website',
         'address',
@@ -32,6 +38,7 @@ class Customer extends Model
     protected function casts(): array
     {
         return [
+            'balance' => 'decimal:2',
             'credit_limit' => 'decimal:2',
             'hubspot_last_modified_at' => 'datetime',
             'last_synced_at' => 'datetime',
@@ -39,16 +46,46 @@ class Customer extends Model
         ];
     }
 
-    public function getBalanceAttribute(): string
+    public function ledgerEntries(): HasMany
     {
-        $issuedInvoicesTotal = $this->invoices()
-            ->where('status', 'issued')
-            ->sum('total_amount');
+        return $this->hasMany(LedgerEntry::class);
+    }
 
-        $paymentsTotal = $this->payments()
-            ->sum('amount');
+    public function recalculateBalance(): void
+    {
+        app(AccountStatementService::class)->recalculateRunningBalances($this);
+    }
 
-        return number_format($issuedInvoicesTotal - $paymentsTotal, 2, '.', '');
+    public function scopeWithDebt(Builder $query): Builder
+    {
+        return $query->where('balance', '>', 0);
+    }
+
+    public function scopeWithCredit(Builder $query): Builder
+    {
+        return $query->where('balance', '<', 0);
+    }
+
+    public function priceList(): BelongsTo
+    {
+        return $this->belongsTo(PriceList::class);
+    }
+
+    public function getEffectivePriceList(): ?PriceList
+    {
+        if ($this->price_list_id !== null) {
+            return $this->priceList;
+        }
+
+        return PriceList::query()
+            ->active()
+            ->where('is_default', true)
+            ->first();
+    }
+
+    public function getPriceForProduct(Product $product): float
+    {
+        return app(PriceResolutionService::class)->resolvePrice($product, $this);
     }
 
     public function orders(): HasMany

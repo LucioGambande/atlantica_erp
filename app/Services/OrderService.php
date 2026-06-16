@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\PriceResolutionService;
 use App\Support\LineItemTotals;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -27,6 +29,9 @@ class OrderService
 
             $totalAmount = 0;
 
+            $customer = Customer::query()->find($data['customer_id']);
+            $priceResolver = app(PriceResolutionService::class);
+
             foreach ($items as $item) {
                 $product = Product::query()->findOrFail($item['product_id']);
                 $quantity = (int) ($item['quantity'] ?? 0);
@@ -35,7 +40,9 @@ class OrderService
                     throw new InvalidArgumentException('Item quantity must be greater than zero.');
                 }
 
-                $unitPrice = (float) ($item['unit_price'] ?? $product->sale_price);
+                $unitPrice = array_key_exists('unit_price', $item)
+                    ? (float) $item['unit_price']
+                    : $priceResolver->resolvePrice($product, $customer);
                 $discountPercent = (float) ($item['discount_percent'] ?? 0);
                 $totalPrice = LineItemTotals::discountedLineTotal($unitPrice, $quantity, $discountPercent);
 

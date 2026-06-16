@@ -16,12 +16,14 @@ class Order extends Model
         'customer_id',
         'status',
         'total_amount',
+        'ordered_at',
     ];
 
     protected function casts(): array
     {
         return [
             'total_amount' => 'decimal:2',
+            'ordered_at' => 'datetime',
         ];
     }
 

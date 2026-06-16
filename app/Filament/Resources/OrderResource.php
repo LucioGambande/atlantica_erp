@@ -6,6 +6,7 @@ use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\PriceResolutionService;
 use App\Services\InvoiceService;
 use App\Support\LineItemTotals;
 use Filament\Forms;
@@ -57,7 +58,7 @@ class OrderResource extends Resource
         return [
             Forms\Components\Checkbox::make('generates_stock_movement')
                 ->label('Genera movimiento de stock')
-                ->default(false),
+                ->default(true),
         ];
     }
 
@@ -66,7 +67,7 @@ class OrderResource extends Resource
         try {
             $invoice = app(InvoiceService::class)->createFromOrder(
                 $order,
-                (bool) ($data['generates_stock_movement'] ?? false),
+                (bool) ($data['generates_stock_movement'] ?? true),
             );
 
             Notification::make()
@@ -116,6 +117,10 @@ class OrderResource extends Resource
                             ])
                             ->required()
                             ->default('pending'),
+                        Forms\Components\DateTimePicker::make('ordered_at')
+                            ->label('Fecha del pedido')
+                            ->default(now())
+                            ->required(fn (?Order $record): bool => $record === null),
                         Forms\Components\Hidden::make('total_amount')
                             ->default(0),
                         Forms\Components\Placeholder::make('order_total_preview')
@@ -176,7 +181,10 @@ class OrderResource extends Resource
                                         }
                                         $product = Product::query()->find($state);
                                         if ($product) {
-                                            $set('unit_price', (float) $product->sale_price);
+                                            $customerId = $get('../../customer_id');
+                                            $unitPrice = app(PriceResolutionService::class)
+                                                ->resolvePriceForCustomerId($product, $customerId ? (int) $customerId : null);
+                                            $set('unit_price', $unitPrice);
                                         }
                                         static::recalculateLineTotal($set, $get);
                                     }),
@@ -251,6 +259,10 @@ class OrderResource extends Resource
                     ->url(fn (Order $record): ?string => $record->invoice
                         ? InvoiceResource::getUrl('edit', ['record' => $record->invoice])
                         : null),
+                Tables\Columns\TextColumn::make('ordered_at')
+                    ->label('Fecha pedido')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),

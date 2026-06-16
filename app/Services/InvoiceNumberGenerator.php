@@ -70,7 +70,28 @@ class InvoiceNumberGenerator
         return $prefix.$this->formatSequence($sequence + 1);
     }
 
-    protected function extractSequence(string $invoiceNumber, string $prefix): ?int
+    public function parse(string $invoiceNumber): ?array
+    {
+        foreach ($this->knownPrefixesForNumber($invoiceNumber) as $prefix) {
+            $sequence = $this->extractSequence($invoiceNumber, $prefix);
+
+            if ($sequence === null) {
+                continue;
+            }
+
+            $year = (int) substr($prefix, strlen($this->prefix()), 4);
+
+            return [
+                'prefix' => $prefix,
+                'sequence' => $sequence,
+                'year' => $year,
+            ];
+        }
+
+        return null;
+    }
+
+    public function extractSequence(string $invoiceNumber, string $prefix): ?int
     {
         if (! str_starts_with($invoiceNumber, $prefix)) {
             return null;
@@ -88,5 +109,17 @@ class InvoiceNumberGenerator
     protected function formatSequence(int $sequence): string
     {
         return str_pad((string) $sequence, $this->padding(), '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function knownPrefixesForNumber(string $invoiceNumber): array
+    {
+        if (preg_match('/^('.preg_quote($this->prefix(), '/').'\d{4}-)/', $invoiceNumber, $matches) === 1) {
+            return [$matches[1]];
+        }
+
+        return [];
     }
 }

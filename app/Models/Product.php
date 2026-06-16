@@ -47,4 +47,9 @@ class Product extends Model
     {
         return $this->hasMany(PurchaseInvoiceItem::class);
     }
+
+    public function priceListItems(): HasMany
+    {
+        return $this->hasMany(PriceListItem::class);
+    }
 }

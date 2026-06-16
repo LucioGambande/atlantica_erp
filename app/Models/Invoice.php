@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Services\InvoiceSequenceValidator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class Invoice extends Model
 {
@@ -34,6 +37,40 @@ class Invoice extends Model
             'issued_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Invoice $invoice): void {
+            if (blank($invoice->invoice_number)) {
+                return;
+            }
+
+            if (! $invoice->isDirty(['invoice_number', 'issued_at', 'status'])) {
+                return;
+            }
+
+            if (! in_array($invoice->status, ['issued', 'paid'], true) && $invoice->issued_at === null) {
+                return;
+            }
+
+            try {
+                app(InvoiceSequenceValidator::class)->validate(
+                    $invoice->invoice_number,
+                    $invoice->issued_at ?? now(),
+                    $invoice->exists ? $invoice->id : null,
+                );
+            } catch (InvalidArgumentException $exception) {
+                throw ValidationException::withMessages([
+                    'issued_at' => $exception->getMessage(),
+                ]);
+            }
+        });
+    }
+
+    public function shouldAffectStock(): bool
+    {
+        return in_array($this->status, ['issued', 'paid'], true);
     }
 
     public function customer(): BelongsTo

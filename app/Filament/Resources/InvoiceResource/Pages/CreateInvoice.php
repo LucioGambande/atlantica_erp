@@ -19,6 +19,10 @@ class CreateInvoice extends CreateRecord
             $data['invoice_number'] = app(InvoiceNumberGenerator::class)->next();
         }
 
+        if (blank($data['issued_at'] ?? null)) {
+            $data['issued_at'] = now();
+        }
+
         return $data;
     }
 

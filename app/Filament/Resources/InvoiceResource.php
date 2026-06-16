@@ -7,11 +7,13 @@ use App\Filament\Resources\InvoiceResource\RelationManagers;
 use App\Filament\Forms\PaymentDetailForm;
 use App\Models\Invoice;
 use App\Services\InvoiceNumberGenerator;
+use App\Services\InvoiceSequenceValidator;
 use App\Services\InvoiceService;
 use App\Services\PaymentService;
 use RuntimeException;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -142,6 +144,23 @@ class InvoiceResource extends Resource
                     ->unique(column: 'invoice_number', ignoreRecord: true)
                     ->default(fn (): string => app(InvoiceNumberGenerator::class)->preview())
                     ->helperText('Se sugiere el siguiente número correlativo del año. Podés cambiarlo antes de guardar.'),
+                Forms\Components\DateTimePicker::make('issued_at')
+                    ->label('Fecha de emisión')
+                    ->default(now())
+                    ->required(fn (Get $get): bool => in_array($get('status'), ['issued', 'paid'], true))
+                    ->minDate(function (Get $get, ?Invoice $record): ?Carbon {
+                        $invoiceNumber = $get('invoice_number');
+
+                        if (blank($invoiceNumber)) {
+                            return app(InvoiceSequenceValidator::class)->minimumIssuedAtForNextInYear();
+                        }
+
+                        return app(InvoiceSequenceValidator::class)->minimumIssuedAt(
+                            $invoiceNumber,
+                            $record?->id,
+                        ) ?? app(InvoiceSequenceValidator::class)->minimumIssuedAtForNextInYear();
+                    })
+                    ->helperText('Debe ser igual o posterior a la factura con número anterior, y anterior o igual a la siguiente.'),
                 Forms\Components\Select::make('document_type')
                     ->label('Tipo de documento')
                     ->options([
@@ -181,7 +200,7 @@ class InvoiceResource extends Resource
                     ->disabled(),
                 Forms\Components\Checkbox::make('generates_stock_movement')
                     ->label('Genera movimiento de stock')
-                    ->default(false)
+                    ->default(true)
                     ->disabled(fn (?Invoice $record): bool => $record !== null && (
                         $record->stock_movements_recorded
                         || $record->isCreditNote()
@@ -191,9 +210,6 @@ class InvoiceResource extends Resource
                     ->label('Stock')
                     ->content('Movimientos de stock registrados')
                     ->visible(fn (?Invoice $record): bool => $record?->stock_movements_recorded ?? false),
-                Forms\Components\DateTimePicker::make('issued_at')
-                    ->label('Fecha de emisión')
-                    ->nullable(),
             ]);
     }
 

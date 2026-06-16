@@ -17,7 +17,7 @@ class InvoiceService
     ) {
     }
 
-    public function createFromOrder(Order $order, bool $generatesStockMovement = false): Invoice
+    public function createFromOrder(Order $order, bool $generatesStockMovement = true): Invoice
     {
         return DB::transaction(function () use ($order, $generatesStockMovement): Invoice {
             $order->loadMissing('orderItems.product');
@@ -61,7 +61,7 @@ class InvoiceService
             $invoice->recalculateTotalFromItems();
 
             if ($generatesStockMovement) {
-                $this->stockService->applyStockFromInvoice($invoice);
+                $this->stockService->applyStockFromInvoice($invoice->fresh());
             }
 
             if ($order->status === 'pending') {
