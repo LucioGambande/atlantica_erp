@@ -87,6 +87,11 @@ class StockMovementResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('product_id')
+                    ->label('Producto')
+                    ->relationship('product', 'name')
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('type')
                     ->options([
                         'in' => 'Entrada',
