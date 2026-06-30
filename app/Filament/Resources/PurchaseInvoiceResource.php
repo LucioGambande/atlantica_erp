@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PurchaseInvoiceResource\Pages;
 use App\Filament\Resources\PurchaseInvoiceResource\RelationManagers;
 use App\Models\PurchaseInvoice;
+use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -25,6 +26,11 @@ class PurchaseInvoiceResource extends Resource
     protected static ?string $pluralModelLabel = 'facturas de compra';
 
     protected static ?string $recordTitleAttribute = 'document_number';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::isAdmin();
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

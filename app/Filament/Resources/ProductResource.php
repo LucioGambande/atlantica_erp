@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProductResource\Pages;
 use App\Models\Product;
+use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -25,6 +26,11 @@ class ProductResource extends Resource
     protected static ?string $pluralModelLabel = 'productos';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::userCan('manage products');
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Models\Supplier;
+use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -25,6 +26,11 @@ class SupplierResource extends Resource
     protected static ?string $pluralModelLabel = 'proveedores';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::isAdmin();
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

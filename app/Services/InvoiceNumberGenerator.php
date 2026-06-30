@@ -122,4 +122,32 @@ class InvoiceNumberGenerator
 
         return [];
     }
+
+    public function compareNumbers(string $left, string $right): int
+    {
+        $leftKey = $this->sortKey($left);
+        $rightKey = $this->sortKey($right);
+
+        return $leftKey <=> $rightKey;
+    }
+
+    public function isInRange(string $invoiceNumber, string $from, string $to): bool
+    {
+        return $this->compareNumbers($invoiceNumber, $from) >= 0
+            && $this->compareNumbers($invoiceNumber, $to) <= 0;
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    public function sortKey(string $invoiceNumber): array
+    {
+        $parsed = $this->parse($invoiceNumber);
+
+        if ($parsed === null) {
+            return [PHP_INT_MAX, PHP_INT_MAX];
+        }
+
+        return [$parsed['year'], $parsed['sequence']];
+    }
 }

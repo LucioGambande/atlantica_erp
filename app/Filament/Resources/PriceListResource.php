@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PriceListResource\Pages;
 use App\Filament\Resources\PriceListResource\RelationManagers;
 use App\Models\PriceList;
+use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Set;
@@ -30,6 +31,11 @@ class PriceListResource extends Resource
     protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::userCan('manage customers');
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

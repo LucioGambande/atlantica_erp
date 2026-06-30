@@ -7,9 +7,11 @@ use App\Filament\Resources\InvoiceResource\RelationManagers;
 use App\Filament\Forms\PaymentDetailForm;
 use App\Models\Invoice;
 use App\Services\InvoiceNumberGenerator;
+use App\Services\InvoicePrintService;
 use App\Services\InvoiceSequenceValidator;
 use App\Services\InvoiceService;
 use App\Services\PaymentService;
+use App\Support\InvoicePrintAuthorization;
 use RuntimeException;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -102,6 +104,43 @@ class InvoiceResource extends Resource
                 ->danger()
                 ->send();
         }
+    }
+
+    public static function canViewAny(): bool
+    {
+        return InvoicePrintAuthorization::canPrint();
+    }
+
+    public static function canCreate(): bool
+    {
+        return InvoicePrintAuthorization::canManage();
+    }
+
+    public static function canEdit($record): bool
+    {
+        return InvoicePrintAuthorization::canManage();
+    }
+
+    public static function canView($record): bool
+    {
+        return InvoicePrintAuthorization::canPrint();
+    }
+
+    public static function canPrintInvoice(Invoice $invoice): bool
+    {
+        return InvoicePrintAuthorization::canPrint()
+            && in_array($invoice->status, app(InvoicePrintService::class)->printableStatuses(), true);
+    }
+
+    public static function printAction(string $name = 'print'): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make($name)
+            ->label('Imprimir')
+            ->icon('heroicon-o-printer')
+            ->color('gray')
+            ->visible(fn (Invoice $record): bool => static::canPrintInvoice($record))
+            ->url(fn (Invoice $record): string => route('invoices.print', $record))
+            ->openUrlInNewTab();
     }
 
     public static function canDelete($record): bool
@@ -308,11 +347,14 @@ class InvoiceResource extends Resource
                     }),
             ])
             ->actions([
+                static::printAction(),
+                Tables\Actions\ViewAction::make()
+                    ->visible(fn (): bool => ! InvoicePrintAuthorization::canManage()),
                 Tables\Actions\Action::make('markAsPaid')
                     ->label('Registrar pago')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
-                    ->visible(fn (Invoice $record): bool => $record->canRegisterPayment())
+                    ->visible(fn (Invoice $record): bool => InvoicePrintAuthorization::canManage() && $record->canRegisterPayment())
                     ->form(fn (Invoice $record): array => static::markAsPaidFormSchema($record))
                     ->action(fn (Invoice $record, array $data) => static::registerInvoicePayment($record, $data)),
                 Tables\Actions\Action::make('cancelInvoice')
@@ -322,9 +364,10 @@ class InvoiceResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Cancelar factura')
                     ->modalDescription('Se creará una nota de crédito con importes negativos. La factura original quedará cancelada.')
-                    ->visible(fn (Invoice $record): bool => $record->canBeCancelled())
+                    ->visible(fn (Invoice $record): bool => InvoicePrintAuthorization::canManage() && $record->canBeCancelled())
                     ->action(fn (Invoice $record) => static::cancelInvoice($record)),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (): bool => InvoicePrintAuthorization::canManage()),
             ])
             ->bulkActions([]);
     }
@@ -342,6 +385,7 @@ class InvoiceResource extends Resource
         return [
             'index' => Pages\ListInvoices::route('/'),
             'create' => Pages\CreateInvoice::route('/create'),
+            'view' => Pages\ViewInvoice::route('/{record}'),
             'edit' => Pages\EditInvoice::route('/{record}/edit'),
         ];
     }

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\InvoiceResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
 use App\Services\StockService;
+use App\Support\InvoicePrintAuthorization;
 use DomainException;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -16,11 +17,18 @@ class EditInvoice extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('print')
+                ->label('Imprimir')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->visible(fn (): bool => InvoiceResource::canPrintInvoice($this->getRecord()))
+                ->url(fn (): string => route('invoices.print', $this->getRecord()))
+                ->openUrlInNewTab(),
             Actions\Action::make('markAsPaid')
                 ->label('Registrar pago')
                 ->icon('heroicon-o-banknotes')
                 ->color('success')
-                ->visible(fn (): bool => $this->getRecord()->canRegisterPayment())
+                ->visible(fn (): bool => InvoicePrintAuthorization::canManage() && $this->getRecord()->canRegisterPayment())
                 ->form(fn (): array => InvoiceResource::markAsPaidFormSchema($this->getRecord()))
                 ->action(fn (array $data) => InvoiceResource::registerInvoicePayment($this->getRecord(), $data)),
             Actions\Action::make('cancelInvoice')
@@ -30,7 +38,7 @@ class EditInvoice extends EditRecord
                 ->requiresConfirmation()
                 ->modalHeading('Cancelar factura')
                 ->modalDescription('Se creará una nota de crédito con importes negativos. La factura original quedará cancelada.')
-                ->visible(fn (): bool => $this->getRecord()->canBeCancelled())
+                ->visible(fn (): bool => InvoicePrintAuthorization::canManage() && $this->getRecord()->canBeCancelled())
                 ->action(function (): void {
                     InvoiceResource::cancelInvoice($this->getRecord());
                     $creditNote = $this->getRecord()->fresh()->creditNotes()->latest()->first();

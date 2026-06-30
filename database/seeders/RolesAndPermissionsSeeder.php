@@ -22,6 +22,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage orders',
             'manage invoices',
             'manage stock',
+            'print invoices',
         ];
 
         foreach ($permissions as $permission) {
@@ -31,6 +32,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $adminRole = Role::findOrCreate('admin', 'web');
         $salesRole = Role::findOrCreate('sales', 'web');
         $warehouseRole = Role::findOrCreate('warehouse', 'web');
+        $accountantRole = Role::findOrCreate('accountant', 'web');
 
         $adminRole->syncPermissions($permissions);
         $salesRole->syncPermissions([
@@ -41,6 +43,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $warehouseRole->syncPermissions([
             'manage products',
             'manage stock',
+        ]);
+        $accountantRole->syncPermissions([
+            'print invoices',
         ]);
     }
 }

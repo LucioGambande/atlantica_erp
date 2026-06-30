@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PaymentMethodResource\Pages;
 use App\Models\PaymentMethod;
+use App\Support\ErpAuthorization;
 use App\Support\PaymentDetailType;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -28,6 +29,11 @@ class PaymentMethodResource extends Resource
     protected static ?int $navigationSort = 15;
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::userCan('manage invoices');
+    }
 
     public static function form(Form $form): Form
     {

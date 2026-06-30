@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\StockMovementResource\Pages;
 use App\Models\StockMovement;
+use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -24,6 +25,11 @@ class StockMovementResource extends Resource
     protected static ?string $pluralModelLabel = 'movimientos de stock';
 
     protected static ?string $recordTitleAttribute = 'id';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::userCan('manage stock');
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

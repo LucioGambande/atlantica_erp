@@ -7,6 +7,7 @@ use App\Filament\Resources\PaymentResource\Pages;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\PaymentDetailService;
+use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -27,6 +28,11 @@ class PaymentResource extends Resource
     protected static ?string $pluralModelLabel = 'pagos';
 
     protected static ?string $recordTitleAttribute = 'id';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::userCan('manage invoices');
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

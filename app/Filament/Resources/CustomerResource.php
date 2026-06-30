@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CustomerResource\Pages;
 use App\Models\Customer;
 use App\Models\PriceList;
+use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -26,6 +27,11 @@ class CustomerResource extends Resource
     protected static ?string $pluralModelLabel = 'clientes';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::userCan('manage customers');
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

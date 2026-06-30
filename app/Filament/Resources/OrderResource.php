@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\PriceResolutionService;
 use App\Services\InvoiceService;
+use App\Support\ErpAuthorization;
 use App\Support\LineItemTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -35,6 +36,11 @@ class OrderResource extends Resource
     protected static ?string $pluralModelLabel = 'pedidos';
 
     protected static ?string $recordTitleAttribute = 'id';
+
+    public static function canViewAny(): bool
+    {
+        return ErpAuthorization::userCan('manage orders');
+    }
 
     public static function getGloballySearchableAttributes(): array
     {

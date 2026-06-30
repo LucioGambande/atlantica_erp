@@ -6,6 +6,7 @@ use App\Filament\Resources\ProductResource;
 use App\Filament\Resources\StockMovementResource;
 use App\Models\Product;
 use App\Services\StockReportService;
+use App\Support\ErpAuthorization;
 use Filament\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -31,6 +32,11 @@ class StockReport extends Page implements HasTable
     protected static string $view = 'filament.pages.stock-report';
 
     protected static ?string $slug = 'stock-report';
+
+    public static function canAccess(): bool
+    {
+        return ErpAuthorization::userCan('manage stock');
+    }
 
     public function getSummary(): array
     {
