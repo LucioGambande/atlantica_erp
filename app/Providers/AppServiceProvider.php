@@ -14,6 +14,8 @@ use App\Observers\InvoiceObserver;
 use App\Observers\PaymentObserver;
 use App\Support\PaymentDetailType;
 use Carbon\Carbon;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
@@ -45,5 +47,18 @@ class AppServiceProvider extends ServiceProvider
 
         Invoice::observe(InvoiceObserver::class);
         Payment::observe(PaymentObserver::class);
+
+        Table::configureUsing(function (Table $table): void {
+            $table
+                ->filtersLayout(FiltersLayout::AboveContentCollapsible)
+                ->filtersFormColumns([
+                    'default' => 1,
+                    'sm' => 2,
+                    'lg' => 4,
+                ])
+                ->persistFiltersInSession()
+                ->deferFilters(false)
+                ->striped();
+        });
     }
 }

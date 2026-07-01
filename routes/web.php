@@ -19,10 +19,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::get('/admin/invoices/{invoice}/print', [InvoicePrintController::class, 'show'])
-        ->name('invoices.print');
-    Route::get('/admin/invoices/print/range', [InvoicePrintController::class, 'range'])
-        ->name('invoices.print.range');
+    Route::middleware('role_or_permission:print invoices|manage invoices')->group(function (): void {
+        Route::get('/admin/invoices/{invoice}/print', [InvoicePrintController::class, 'show'])
+            ->name('invoices.print');
+        Route::get('/admin/invoices/print/range', [InvoicePrintController::class, 'range'])
+            ->name('invoices.print.range');
+    });
 });
 
 require __DIR__.'/auth.php';

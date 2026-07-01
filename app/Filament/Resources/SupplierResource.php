@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Models\Supplier;
 use App\Support\ErpAuthorization;
@@ -19,7 +20,9 @@ class SupplierResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::COMPRAS;
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $modelLabel = 'proveedor';
 
@@ -69,13 +72,17 @@ class SupplierResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('tax_id')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('email')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('phone')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

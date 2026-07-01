@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\PaymentMethodResource\Pages;
 use App\Models\PaymentMethod;
 use App\Support\ErpAuthorization;
@@ -20,13 +21,13 @@ class PaymentMethodResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-credit-card';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::FACTURACION;
+
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $modelLabel = 'método de pago';
 
     protected static ?string $pluralModelLabel = 'métodos de pago';
-
-    protected static ?int $navigationSort = 15;
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -81,7 +82,8 @@ class PaymentMethodResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('slug')
                     ->label('Identificador')
                     ->searchable()
@@ -89,18 +91,22 @@ class PaymentMethodResource extends Resource
                 Tables\Columns\TextColumn::make('detail_type')
                     ->label('Tipo de detalle')
                     ->formatStateUsing(fn (string $state): string => PaymentDetailType::labels()[$state] ?? $state)
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Activo')
                     ->boolean()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('sort_order')
                     ->label('Orden')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('payments_count')
                     ->label('Pagos')
                     ->counts('payments')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('sort_order')
             ->filters([

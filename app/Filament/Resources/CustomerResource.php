@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\TableUi;
 use App\Filament\Resources\CustomerResource\Pages;
 use App\Models\Customer;
 use App\Models\PriceList;
@@ -20,7 +22,9 @@ class CustomerResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::CLIENTES;
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $modelLabel = 'cliente';
 
@@ -89,29 +93,40 @@ class CustomerResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('priceList.name')
                     ->label('Lista de precios')
                     ->placeholder('Default')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('balance')
                     ->label('Saldo')
                     ->money('EUR')
                     ->sortable()
+                    ->toggleable()
                     ->color(fn (Customer $record): string => (float) $record->balance > 0 ? 'danger' : 'success'),
                 Tables\Columns\TextColumn::make('tax_id')
-                    ->searchable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('email')
-                    ->searchable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('phone')
-                    ->searchable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('customer_type')
                     ->badge()
-                    ->searchable(),
+                    ->extraHeaderAttributes(TableUi::headerSelectFilter('customer_type', [
+                        'horeca' => 'Horeca',
+                        'individual' => 'Individual',
+                    ]))
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('credit_limit')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

@@ -20,6 +20,8 @@ return [
 
     'payment_terms_days' => (int) env('INVOICE_PAYMENT_TERMS_DAYS', 21),
 
+    'logo_path' => env('INVOICE_LOGO_PATH', 'images/brand/atlantica-terranova-logo.png'),
+
     'issuer' => [
         'name' => env('INVOICE_ISSUER_NAME', 'ATLANTICA TERRANOVA 1908 S.L.'),
         'address' => env('INVOICE_ISSUER_ADDRESS', 'Calle Colina Blanca 1 Bl 2 1B'),

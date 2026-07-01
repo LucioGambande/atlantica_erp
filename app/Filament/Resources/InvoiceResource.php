@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\TableUi;
 use App\Filament\Resources\InvoiceResource\Pages;
 use App\Filament\Resources\InvoiceResource\RelationManagers;
 use App\Filament\Forms\PaymentDetailForm;
@@ -32,7 +34,9 @@ class InvoiceResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::FACTURACION;
+
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $modelLabel = 'factura';
 
@@ -258,11 +262,17 @@ class InvoiceResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('invoice_number')
                     ->label('Número')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('document_type')
                     ->label('Tipo')
                     ->badge()
+                    ->extraHeaderAttributes(TableUi::headerSelectFilter('document_type', [
+                        'invoice' => 'Factura',
+                        'credit_note' => 'Nota crédito',
+                    ]))
+                    ->toggleable()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'invoice' => 'Factura',
                         'credit_note' => 'Nota crédito',
@@ -274,11 +284,13 @@ class InvoiceResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('customer.name')
                     ->label('Cliente')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('order.id')
                     ->label('Pedido')
                     ->placeholder('—')
+                    ->toggleable()
                     ->url(fn (Invoice $record): ?string => $record->order_id
                         ? OrderResource::getUrl('edit', ['record' => $record->order_id])
                         : null)
@@ -286,6 +298,11 @@ class InvoiceResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
+                    ->extraHeaderAttributes(TableUi::headerSelectFilter('status', [
+                        'draft' => 'Borrador',
+                        'issued' => 'Emitida',
+                        'paid' => 'Pagada',
+                    ]))
                     ->formatStateUsing(fn (Invoice $record): string => match (true) {
                         $record->isCancelled() => 'Cancelada',
                         $record->status === 'draft' => 'Borrador',
@@ -300,7 +317,8 @@ class InvoiceResource extends Resource
                         $record->status === 'paid' => 'success',
                         default => 'gray',
                     })
-                    ->searchable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('generates_stock_movement')
                     ->label('Stock')
                     ->boolean()
@@ -308,14 +326,21 @@ class InvoiceResource extends Resource
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Total')
                     ->money('EUR')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('paymentMethod.name')
                     ->label('Forma de pago')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('issued_at')
                     ->label('Emitida')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Creada')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
@@ -324,6 +349,12 @@ class InvoiceResource extends Resource
                         'draft' => 'Borrador',
                         'issued' => 'Emitida',
                         'paid' => 'Pagada',
+                    ]),
+                Tables\Filters\SelectFilter::make('document_type')
+                    ->label('Tipo')
+                    ->options([
+                        'invoice' => 'Factura',
+                        'credit_note' => 'Nota crédito',
                     ]),
                 Tables\Filters\Filter::make('issued_at')
                     ->form([

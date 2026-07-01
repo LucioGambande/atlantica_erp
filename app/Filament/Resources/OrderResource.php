@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\TableUi;
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Invoice;
 use App\Models\Order;
@@ -29,7 +31,9 @@ class OrderResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::FACTURACION;
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $modelLabel = 'pedido';
 
@@ -248,30 +252,42 @@ class OrderResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('customer.name')
                     ->label('Cliente')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
+                    ->label('Estado')
                     ->badge()
-                    ->searchable(),
+                    ->extraHeaderAttributes(TableUi::headerSelectFilter('status', [
+                        'pending' => 'Pendiente',
+                        'completed' => 'Completado',
+                        'cancelled' => 'Cancelado',
+                    ]))
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('total_amount')
                     ->money('EUR')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('invoice.invoice_number')
                     ->label('Factura')
                     ->placeholder('—')
+                    ->toggleable()
                     ->url(fn (Order $record): ?string => $record->invoice
                         ? InvoiceResource::getUrl('edit', ['record' => $record->invoice])
                         : null),
                 Tables\Columns\TextColumn::make('ordered_at')
                     ->label('Fecha pedido')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\PriceListResource\Pages;
 use App\Filament\Resources\PriceListResource\RelationManagers;
 use App\Models\PriceList;
@@ -22,13 +23,13 @@ class PriceListResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-currency-euro';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::CLIENTES;
+
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $modelLabel = 'lista de precios';
 
     protected static ?string $pluralModelLabel = 'listas de precios';
-
-    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -111,25 +112,31 @@ class PriceListResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('currency')
                     ->label('Moneda')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('discount_percent')
                     ->label('Dto. global')
                     ->numeric(decimalPlaces: 2)
                     ->suffix('%')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_default')
                     ->label('Default')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Activa')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('customers_count')
                     ->label('Clientes')
                     ->counts('customers')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('items_count')
                     ->label('Productos')
                     ->counts('items')

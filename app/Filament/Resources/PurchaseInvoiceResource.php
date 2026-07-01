@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\TableUi;
 use App\Filament\Resources\PurchaseInvoiceResource\Pages;
 use App\Filament\Resources\PurchaseInvoiceResource\RelationManagers;
 use App\Models\PurchaseInvoice;
@@ -19,7 +21,9 @@ class PurchaseInvoiceResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-arrow-down';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::COMPRAS;
+
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $modelLabel = 'factura de compra';
 
@@ -73,21 +77,30 @@ class PurchaseInvoiceResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('document_number')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('supplier.name')
                     ->label('Proveedor')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->searchable(),
+                    ->extraHeaderAttributes(TableUi::headerSelectFilter('status', [
+                        'draft' => 'Borrador',
+                        'received' => 'Recibida',
+                        'paid' => 'Pagada',
+                    ]))
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('total_amount')
                     ->money('EUR')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('received_at')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

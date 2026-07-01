@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Services\InvoicePrintService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 use InvalidArgumentException;
 
@@ -12,21 +14,17 @@ class InvoicePrintController extends Controller
     public function __construct(
         protected InvoicePrintService $printService,
     ) {
-        $this->middleware('auth');
-        $this->middleware('role_or_permission:print invoices|manage invoices');
     }
 
-    public function show(int $invoice): View
+    public function show(Request $request, int $invoice): View|Response
     {
         $invoiceModel = $this->printService->findForPrint($invoice);
-        $document = $this->printService->buildPrintData($invoiceModel);
+        $documents = [$this->printService->buildPrintData($invoiceModel)];
 
-        return view('invoices.print-batch', [
-            'documents' => [$document],
-        ]);
+        return $this->render($request, $documents);
     }
 
-    public function range(Request $request): View
+    public function range(Request $request): View|Response
     {
         try {
             $invoices = $this->printService->findRangeForPrint(
@@ -45,8 +43,32 @@ class InvoicePrintController extends Controller
             ->map(fn ($invoice) => $this->printService->buildPrintData($invoice))
             ->all();
 
-        return view('invoices.print-batch', [
+        return $this->render($request, $documents);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $documents
+     */
+    protected function render(Request $request, array $documents): View|Response
+    {
+        $logoBase64 = $this->printService->logoBase64();
+        $format = (string) $request->query('format', 'pdf');
+
+        if ($format === 'html') {
+            return view('invoices.print-batch', [
+                'documents' => $documents,
+                'logoBase64' => $logoBase64,
+                'pdfUrl' => $request->fullUrlWithQuery(['format' => 'pdf']),
+            ]);
+        }
+
+        $filename = $this->printService->pdfFilename($documents);
+
+        return Pdf::loadView('invoices.pdf', [
             'documents' => $documents,
-        ]);
+            'logoBase64' => $logoBase64,
+        ])
+            ->setPaper('a4')
+            ->stream($filename);
     }
 }

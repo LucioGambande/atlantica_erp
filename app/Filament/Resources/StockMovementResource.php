@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\TableUi;
 use App\Filament\Resources\StockMovementResource\Pages;
 use App\Models\StockMovement;
 use App\Support\ErpAuthorization;
@@ -18,7 +20,9 @@ class StockMovementResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::INVENTARIO;
+
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $modelLabel = 'movimiento de stock';
 
@@ -69,24 +73,34 @@ class StockMovementResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('product.name')
                     ->label('Producto')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('type')
                     ->badge()
-                    ->searchable(),
+                    ->extraHeaderAttributes(TableUi::headerSelectFilter('type', [
+                        'in' => 'Entrada',
+                        'out' => 'Salida',
+                    ]))
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('quantity')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('reference_type')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('reference_id')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()

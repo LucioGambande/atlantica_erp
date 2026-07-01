@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Forms\PaymentDetailForm;
+use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\PaymentResource\Pages;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -21,7 +22,9 @@ class PaymentResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::FACTURACION;
+
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $modelLabel = 'pago';
 
@@ -82,29 +85,36 @@ class PaymentResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('customer.name')
                     ->label('Cliente')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('invoice.invoice_number')
                     ->label('Factura')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('amount')
                     ->money('EUR')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('paymentMethod.name')
                     ->label('Forma de pago')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('detail_summary')
                     ->label('Detalle')
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->state(fn (Payment $record): string => app(PaymentDetailService::class)->summary($record->detail)),
                 Tables\Columns\TextColumn::make('paid_at')
                     ->label('Fecha de pago')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\Filter::make('paid_at')

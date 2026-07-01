@@ -1,0 +1,33 @@
+---
+description: Mantener CONTEXT.md actualizado al completar cambios funcionales
+alwaysApply: true
+---
+
+# Mantener CONTEXT.md actualizado
+
+Al completar una tarea que cambie comportamiento, permisos, rutas, flujos o comandos del proyecto:
+
+1. **Actualizar `CONTEXT.md`** en la misma sesión, antes de dar por cerrada la tarea.
+2. Si el proyecto usa otro nombre canónico (`AI-CONTEXT.md`, `docs/CONTEXT.md`), actualizar ese archivo equivalente.
+
+## Qué incluir
+
+- Roles, permisos y accesos nuevos o modificados
+- Flujos de negocio afectados (paso a paso breve)
+- Rutas Filament, web o API relevantes
+- Comandos artisan nuevos o útiles
+- Archivos/servicios clave (tabla corta)
+- Quitar o marcar como resuelta deuda técnica ya implementada
+- Fecha en el encabezado (`Última actualización`)
+
+## Qué NO hacer
+
+- No duplicar `PROJECT.md` entero; `CONTEXT.md` es handoff operativo para el asistente
+- No omitir la actualización por ser “solo un cambio pequeño” si afecta uso del sistema
+- No crear otros `.md` salvo que el usuario lo pida; la excepción explícita es este archivo de contexto
+
+## Cuándo NO actualizar
+
+- Refactors internos sin cambio de comportamiento visible
+- Fixes cosméticos, typos o ajustes de estilo
+- Preguntas informativas sin cambios en el repo

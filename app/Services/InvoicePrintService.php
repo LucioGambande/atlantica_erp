@@ -15,6 +15,39 @@ class InvoicePrintService
     ) {
     }
 
+    public function logoBase64(): ?string
+    {
+        $relativePath = (string) config('invoices.logo_path', 'images/brand/atlantica-terranova-logo.png');
+        $absolutePath = public_path($relativePath);
+
+        if (! is_file($absolutePath)) {
+            return null;
+        }
+
+        $contents = file_get_contents($absolutePath);
+
+        if ($contents === false) {
+            return null;
+        }
+
+        return base64_encode($contents);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $documents
+     */
+    public function pdfFilename(array $documents): string
+    {
+        if (count($documents) === 1) {
+            return str_replace('/', '-', (string) $documents[0]['invoice_number']).'.pdf';
+        }
+
+        $first = str_replace('/', '-', (string) $documents[0]['invoice_number']);
+        $last = str_replace('/', '-', (string) $documents[array_key_last($documents)]['invoice_number']);
+
+        return "facturas-{$first}-{$last}.pdf";
+    }
+
     public function printableStatuses(): array
     {
         return ['issued', 'paid'];

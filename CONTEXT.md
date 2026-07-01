@@ -2,6 +2,7 @@
 
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
 > La documentación técnica completa está en `PROJECT.md`.
+> **Mantener actualizado** al completar cambios funcionales (ver regla `.cursor/rules/maintain-context-md.mdc`).
 > Última actualización: junio 2026.
 
 ---
@@ -24,6 +25,8 @@ Este ERP es la fuente de verdad operativa del negocio. No es un proyecto de agen
 - **Colas database** para jobs de sync
 
 Entorno local: `./vendor/bin/sail up -d`. Puerto app: `8081`. Puerto PostgreSQL: `5433`.
+
+Panel Filament: menú lateral en 4 grupos (**Facturación**, **Inventario**, **Clientes**, **Compras**), colapsable tipo hamburguesa en desktop (`sidebarFullyCollapsibleOnDesktop`). Listados con selector de columnas visibles (`toggleable` en todas las columnas).
 
 > Todos los comandos artisan deben correr dentro de Sail: `./vendor/bin/sail artisan ...`
 
@@ -49,7 +52,9 @@ Flete de referencia (Mendoza → Barcelona vía Valparaíso): 20' ~€4,243 / 40
 - `customer_type`: `horeca` (restaurantes, hoteles, bares) o `individual`
 - Estrategia actual: transición de distribuidor a **importadora directa**, apuntando a **distribuidores regionales** mientras se retienen clientes HORECA directos
 - Los clientes entran desde HubSpot (Companies) y se sincronizan automáticamente
-- El campo `credit_limit` y el accesor `balance` (facturas `issued` − pagos) son centrales para el control de riesgo
+- **`price_list_id`**: cada cliente puede tener lista de precios (`PriceList` / `PriceListItem`); resolución en `PriceResolutionService`
+- **`balance`**: saldo en cuenta corriente (`customers.balance`), mantenido por `ledger_entries` vía observers de `Invoice` y `Payment`
+- **`credit_limit`**: control de riesgo comercial
 
 ---
 
@@ -57,28 +62,82 @@ Flete de referencia (Mendoza → Barcelona vía Valparaíso): 20' ~€4,243 / 40
 
 ```
 Cliente HubSpot → sync → Customer en Laravel
-  → Order (con OrderItems + descuentos por línea)
-    → Invoice (desde Order, via InvoiceService)
+  → Order (OrderItems + descuentos; precios desde lista del cliente)
+    → Invoice (desde pedido vía InvoiceService::createFromOrder)
       → Payment (PaymentMethod + detalle polimórfico; marca factura paid)
+      → LedgerEntry (automático al emitir/pagar)
 ```
 
-Métodos de pago configurables en **Métodos de pago** (Filament). Ej.: transferencia bancaria exige `transaction_number`. Registro desde factura emitida → **Registrar pago**.
+### Facturación
 
-Stock se descuenta automáticamente al completar el pedido (`StockService`). Los movimientos quedan en `StockMovement`.
+- Botón **Facturar pedido** en pedido (`InvoiceService::createFromOrder`)
+- Numeración correlativa: `{prefix}{año}-{secuencia}` — ej. `HORECA2025-00082` (`InvoiceNumberGenerator`, config en `config/invoices.php`)
+- Validación número/fecha al emitir (`InvoiceSequenceValidator`)
+- `issued_at` y `ordered_at` default `now()` al crear
+- Facturas **no eliminables**; **Cancelar factura** crea nota de crédito (`InvoiceService::cancelInvoice`)
+- Stock en factura: checkbox `generates_stock_movement` (default `true`); al pasar a `issued` aplica `StockService::applyStockFromInvoice`
+
+### Pagos
+
+- Métodos configurables en **Métodos de pago** (Filament)
+- Registro desde factura emitida → **Registrar pago**
+- Ej.: transferencia bancaria exige `transaction_number`
+
+### Cuenta corriente
+
+- Página `/admin/customers/{id}/statement` (`CustomerStatement`)
+- Widget saldo en edición de cliente
+- Botón **Importar movimientos** si hay facturas/pagos pero ledger vacío
+- Rebuild manual: `./vendor/bin/sail artisan ledger:rebuild`
+
+### Stock
+
+- Reporte `/admin/stock-report` (`StockReport` page)
+- Sanitizar movimientos alineados solo a facturas: `./vendor/bin/sail artisan stock:sanitize`
+
+### Impresión de facturas
+
+- Formato basado en Excel real (HORECA2025-0082): logo arriba a la derecha, emisor/cliente en dos columnas, líneas con IVA 21%, total alineado bajo columna Precio, vencimiento +21 días, IBAN
+- **PDF por defecto** vía `barryvdh/laravel-dompdf` (`?format=html` para vista previa en navegador)
+- Config emisor/IVA/plazo/logo: `config/invoices.php` y variables `INVOICE_ISSUER_*`, `INVOICE_LOGO_PATH`
+- Página rango: `/admin/print-invoices` (Filament `PrintInvoices`)
+- Cuentas corrientes (listado): `/admin/customer-accounts` (`CustomerAccountsReport`)
+- Impresión individual: botón en listado y en vista/edición de factura
+- Rutas web:
+  - `/admin/invoices/{id}/print`
+  - `/admin/invoices/print/range?from=HORECA2025-00001&to=HORECA2025-00099`
+- Servicios: `InvoicePrintService`, `InvoicePrintAuthorization`
+- Vistas: `resources/views/invoices/pdf.blade.php`, `partials/document.blade.php`
+- Solo facturas `issued` o `paid` son imprimibles
 
 ---
 
 ## Roles y acceso
 
-| Rol | Acceso |
-|-----|--------|
-| `admin` | Todo el panel Filament |
-| `sales` | Pedidos, clientes, facturas venta |
-| `warehouse` | Stock, movimientos, facturas compra |
+| Rol | Acceso Filament |
+|-----|-----------------|
+| `admin` | Todo |
+| `sales` | Clientes, pedidos, facturas venta, pagos, listas de precios |
+| `warehouse` | Productos, stock, movimientos |
+| `accountant` | **Solo** listado de facturas + imprimir (individual y por rango) |
 
-Permisos Spatie: `manage customers`, `manage products`, `manage orders`, `manage invoices`, `manage stock`.
+Permisos Spatie: `manage customers`, `manage products`, `manage orders`, `manage invoices`, `manage stock`, **`print invoices`**.
 
-Hoy Filament solo controla acceso por rol `admin` global. La restricción por recurso con permisos Spatie está pendiente (deuda técnica).
+Acceso al panel (`User::canAccessPanel`): roles `admin`, `sales`, `warehouse`, `accountant`.
+
+Restricción por recurso en Filament vía `canViewAny()` en cada Resource + `ErpAuthorization` / `InvoicePrintAuthorization`. Proveedores y facturas de compra: solo `admin`.
+
+### Crear usuario contador
+
+```bash
+./vendor/bin/sail artisan db:seed --class=RolesAndPermissionsSeeder
+./vendor/bin/sail artisan tinker
+```
+
+```php
+$user = \App\Models\User::create([...]);
+$user->assignRole('accountant');
+```
 
 ---
 
@@ -95,18 +154,45 @@ Hoy Filament solo controla acceso por rol `admin` global. La restricción por re
 
 ---
 
+## Archivos clave por área
+
+| Área | Paths |
+|------|-------|
+| Facturas | `InvoiceResource`, `InvoiceService`, `InvoiceNumberGenerator`, `InvoiceSequenceValidator` |
+| Impresión | `InvoicePrintService`, `InvoicePrintController`, `PrintInvoices`, `config/invoices.php` |
+| Listas de precios | `PriceListResource`, `PriceResolutionService` |
+| Cuenta corriente | `AccountStatementService`, `CustomerStatement`, `ledger:rebuild` |
+| Stock | `StockService`, `StockReport`, `stock:sanitize` |
+| Panel Filament | `AdminPanelProvider`, `TableUi`, `app/Filament/Widgets/`, `app/Filament/Pages/Dashboard.php` |
+| Permisos | `RolesAndPermissionsSeeder`, `ErpAuthorization`, `InvoicePrintAuthorization` |
+
+### Tablas del panel
+
+- **Ordenar:** clic en la flecha del encabezado (no en el texto).
+- **Filtrar select:** clic en el título de columna con desplegable (Estado, Tipo, etc.); sincronizado con el panel de filtros superior.
+- **Buscar texto:** campo bajo el encabezado de cada columna buscable (sin barra global).
+- **Fechas y filtros complejos:** panel colapsable encima de la tabla.
+- Helper: `TableUi::headerSelectFilter()` + override de `header-cell.blade.php`.
+
+### Dashboard (`/admin`)
+
+- **DashboardStatsWidget:** cobrado/facturado del mes, clientes con deuda (`withDebt`), sobre límite de crédito.
+- **PendingInvoicesWidget:** facturas `issued` ordenadas por antigüedad (sin `due_date`).
+- **LowStockWidget:** productos con stock ≤ `StockReportService::LOW_STOCK_THRESHOLD` (10).
+
+---
+
 ## Deuda técnica conocida (no romper sin discutir)
 
 1. `StockMovement.reference_type/id` — polimórfico manual, sin `morphTo` en modelo
-2. Permisos Spatie no aplicados por recurso en Filament (solo rol admin global)
-3. API autenticada con guard `web` (sesión), no Sanctum/tokens
-4. `shouldPreserveManualValue()` en HubSpotCompanySyncService — lógica de protección de campos pendiente
-5. Breeze + vistas Blade legacy; rutas redirigen a Filament
-6. `FacturasSeeder`: facturas `paid` sin registros en `payments`
-7. Tipos de detalle de pago: agregar uno nuevo requiere código (tabla + modelo), no solo CRUD
-8. i18n Filament parcial (labels autogenerados en inglés)
+2. API autenticada con guard `web` (sesión), no Sanctum/tokens
+3. `shouldPreserveManualValue()` en HubSpotCompanySyncService — lógica de protección de campos pendiente
+4. Breeze + vistas Blade legacy; rutas redirigen a Filament
+5. `FacturasSeeder`: facturas `paid` sin registros en `payments`
+6. Tipos de detalle de pago: agregar uno nuevo requiere código (tabla + modelo), no solo CRUD
+7. i18n Filament parcial (labels autogenerados en inglés)
 
-Detalle ampliado de fallas y backlog: ver `PROJECT.md` → secciones **Fallas conocidas** y **Backlog técnico**.
+Detalle ampliado: ver `PROJECT.md` → **Fallas conocidas** y **Backlog técnico**.
 
 ---
 
@@ -116,12 +202,11 @@ Ver backlog priorizado en `PROJECT.md`. Resumen:
 
 1. Worker permanente (Supervisor) en producción
 2. Backfill pagos para facturas históricas del seeder
-3. Permisos Spatie por recurso + roles `superadmin`/`operator`/`viewer`
-4. Pagos parciales y reversión de estado al eliminar pago
-5. i18n completo del panel (`lang/es/erp.php`)
-6. ERP → HubSpot bidireccional (futuro)
-7. Shopify como canal ecommerce (futuro)
-8. Despliegue Laravel Cloud + PostgreSQL
+3. Pagos parciales y reversión de estado al eliminar pago
+4. i18n completo del panel (`lang/es/erp.php`)
+5. ERP → HubSpot bidireccional (futuro)
+6. Shopify como canal ecommerce (futuro)
+7. Despliegue Laravel Cloud + PostgreSQL
 
 ---
 
@@ -133,6 +218,7 @@ Ver backlog priorizado en `PROJECT.md`. Resumen:
 - Jobs en `app/Jobs/`, siempre con retry y backoff
 - Soft deletes en todos los modelos de dominio
 - Migraciones con nombre descriptivo (`add_hubspot_fields_to_customers_table`, no `update_customers`)
+- Blade: no usar `use` dentro de `@php` (usar FQCN o imports en el componente PHP)
 
 ---
 
@@ -143,3 +229,4 @@ Ver backlog priorizado en `PROJECT.md`. Resumen:
 - No romper el flujo Order → Invoice → Payment sin revisar `InvoiceService` (evita duplicados por `order_id`)
 - No tocar `HubSpotMapper` sin actualizar el test de mapeo
 - No añadir campos a `Customer` sin evaluar si HubSpot los sobreescribiría en el próximo sync
+- No eliminar facturas; usar cancelación → nota de crédito

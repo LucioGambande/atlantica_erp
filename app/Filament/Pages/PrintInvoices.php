@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Navigation\NavigationGroups;
 use App\Support\InvoicePrintAuthorization;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -15,13 +16,13 @@ class PrintInvoices extends Page implements HasForms
 
     protected static ?string $navigationIcon = 'heroicon-o-printer';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::FACTURACION;
+
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $navigationLabel = 'Imprimir facturas';
 
     protected static ?string $title = 'Imprimir facturas por rango';
-
-    protected static ?int $navigationSort = 6;
 
     protected static string $view = 'filament.pages.print-invoices';
 

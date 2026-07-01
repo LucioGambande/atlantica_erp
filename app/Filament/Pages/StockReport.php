@@ -2,8 +2,10 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\ProductResource;
 use App\Filament\Resources\StockMovementResource;
+use App\Filament\Support\TableUi;
 use App\Models\Product;
 use App\Services\StockReportService;
 use App\Support\ErpAuthorization;
@@ -21,13 +23,13 @@ class StockReport extends Page implements HasTable
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static ?string $navigationGroup = 'ERP';
+    protected static ?string $navigationGroup = NavigationGroups::INVENTARIO;
 
     protected static ?string $navigationLabel = 'Stock actual';
 
     protected static ?string $title = 'Reporte de stock';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 2;
 
     protected static string $view = 'filament.pages.stock-report';
 
@@ -56,18 +58,26 @@ class StockReport extends Page implements HasTable
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Producto')
-                    ->searchable()
+                    ->searchable(isIndividual: true, isGlobal: false)
                     ->sortable()
-                    ->wrap(),
+                    ->wrap()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('sku')
                     ->label('SKU')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('stock')
                     ->label('Stock actual')
                     ->numeric()
+                    ->extraHeaderAttributes(TableUi::headerSelectFilter('stock_level', [
+                        'zero' => 'Sin stock (0)',
+                        'low' => 'Stock bajo (1–'.StockReportService::LOW_STOCK_THRESHOLD.')',
+                        'ok' => 'Stock OK (>'.StockReportService::LOW_STOCK_THRESHOLD.')',
+                    ]))
                     ->sortable()
                     ->alignEnd()
+                    ->toggleable()
                     ->badge()
                     ->color(fn (Product $record): string => match (true) {
                         (int) $record->stock <= 0 => 'danger',

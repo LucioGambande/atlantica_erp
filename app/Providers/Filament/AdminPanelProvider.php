@@ -2,16 +2,16 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Navigation\NavigationGroups;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\MaxWidth;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -40,6 +40,15 @@ class AdminPanelProvider extends PanelProvider
                 'success' => Color::Sky,
                 'info' => Color::Blue,
                 'gray' => Color::Slate,
+            ])
+            ->sidebarFullyCollapsibleOnDesktop()
+            ->collapsibleNavigationGroups(true)
+            ->maxContentWidth(MaxWidth::Full)
+            ->navigationGroups([
+                NavigationGroups::FACTURACION,
+                NavigationGroups::INVENTARIO,
+                NavigationGroups::CLIENTES,
+                NavigationGroups::COMPRAS,
             ])
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
@@ -151,20 +160,31 @@ class AdminPanelProvider extends PanelProvider
             padding-bottom: 0.5rem !important;
         }
     }
+
+    /* Más espacio horizontal para listados */
+    .fi-panel-admin .fi-main-ctn {
+        max-width: 100%;
+    }
+    .fi-panel-admin .fi-main {
+        max-width: 100%;
+    }
+    .fi-panel-admin .fi-ta-ctn {
+        overflow-x: auto;
+    }
+    .fi-panel-admin .fi-ta-content {
+        overflow-x: auto;
+    }
+    .fi-panel-admin .fi-ta-table > .fi-ta-header,
+    .fi-panel-admin .fi-ta-table > .fi-ta-body {
+        min-width: max-content;
+    }
 </style>
 CSS
                 ),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
-            ->pages([
-                Pages\Dashboard::class,
-            ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
-            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
