@@ -29,6 +29,8 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::findOrCreate($permission, 'web');
         }
 
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $adminRole = Role::findOrCreate('admin', 'web');
         $salesRole = Role::findOrCreate('sales', 'web');
         $warehouseRole = Role::findOrCreate('warehouse', 'web');
