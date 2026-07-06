@@ -8,6 +8,7 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\Product;
+use App\Services\InvoiceNumberGenerator;
 use App\Support\LegacyCsvReader;
 use App\Support\LegacyDateParser;
 use Illuminate\Support\Carbon;
@@ -74,10 +75,34 @@ class LegacyDataImporter
     public function __construct(
         protected PaymentDetailService $paymentDetailService,
         protected AccountStatementService $accountStatementService,
+        protected InvoiceNumberGenerator $invoiceNumberGenerator,
     ) {
     }
 
-    public function import(bool $dryRun = false): void
+    public function resetInvoiceData(): void
+    {
+        Invoice::skipSequenceValidation(true);
+
+        try {
+            DB::transaction(function (): void {
+                DB::table('ledger_entries')->delete();
+
+                Payment::withoutEvents(function (): void {
+                    Payment::query()->with('detail')->each(function (Payment $payment): void {
+                        $payment->detail?->delete();
+                        $payment->delete();
+                    });
+                });
+
+                InvoiceItem::query()->delete();
+                Invoice::query()->delete();
+            });
+        } finally {
+            Invoice::skipSequenceValidation(false);
+        }
+    }
+
+    public function import(bool $dryRun = false, bool $invoicesOnly = false): void
     {
         $this->dryRun = $dryRun;
         $this->importPath = base_path();
@@ -86,8 +111,11 @@ class LegacyDataImporter
         $this->loadCsvFiles();
         $this->preloadLookups();
 
-        $callback = function (): void {
-            $this->importCustomers();
+        $callback = function () use ($invoicesOnly): void {
+            if (! $invoicesOnly) {
+                $this->importCustomers();
+            }
+
             $this->importInvoices();
             $this->importInvoiceLines();
             $this->importPayments();
@@ -290,17 +318,17 @@ class LegacyDataImporter
                 continue;
             }
 
-            $invoiceNumber = LegacyCsvReader::value($data, 'numero_factura')
-                ?? ($legacyInvoiceId !== null ? 'LEGACY-'.$legacyInvoiceId : null);
-            $estado = Str::lower((string) LegacyCsvReader::value($data, 'estado'));
-
             if ($this->shouldSkipCancelledInvoiceRow($data)) {
                 $this->invoiceStats['skipped']++;
-                $label = $invoiceNumber ?? $legacyInvoiceId ?? '(sin id)';
+                $legacyInvoiceId = LegacyCsvReader::value($data, 'factura_id');
+                $label = $legacyInvoiceId ?? '(sin id)';
                 $this->skippedInvoices[] = "Fila {$row}: factura cancelada ({$label}) — omitida";
 
                 continue;
             }
+
+            $invoiceNumber = $this->buildInvoiceNumber($data, (string) $legacyInvoiceId, $row);
+            $estado = Str::lower((string) LegacyCsvReader::value($data, 'estado'));
 
             if (blank($invoiceNumber)) {
                 throw new InvalidArgumentException("Fila {$row} en facturas.csv: falta factura_id / numero_factura.");
@@ -535,10 +563,18 @@ class LegacyDataImporter
         $invoiceNumbers = collect($this->invoiceRows)
             ->map(function (array $entry): ?string {
                 $data = $entry['data'];
+
+                if ($this->shouldSkipInvalidInvoiceRow($data) || $this->shouldSkipCancelledInvoiceRow($data)) {
+                    return null;
+                }
+
                 $legacyId = LegacyCsvReader::value($data, 'factura_id');
 
-                return LegacyCsvReader::value($data, 'numero_factura')
-                    ?? ($legacyId !== null ? 'LEGACY-'.$legacyId : null);
+                if ($legacyId === null) {
+                    return null;
+                }
+
+                return $this->buildInvoiceNumber($data, $legacyId, $entry['row']);
             })
             ->filter()
             ->values();
@@ -580,14 +616,6 @@ class LegacyDataImporter
 
     protected function findExistingCustomer(?string $taxId, ?string $legacyId): ?Customer
     {
-        if (filled($taxId)) {
-            $match = Customer::query()->where('tax_id', $taxId)->first();
-
-            if ($match !== null) {
-                return $match;
-            }
-        }
-
         if ($legacyId !== null) {
             $match = Customer::query()->where('legacy_id', $legacyId)->first();
 
@@ -595,7 +623,21 @@ class LegacyDataImporter
                 return $match;
             }
 
-            return Customer::query()->where('hubspot_company_id', $legacyId)->first();
+            $match = Customer::query()->where('hubspot_company_id', $legacyId)->first();
+
+            if ($match !== null) {
+                return $match;
+            }
+        }
+
+        if (filled($taxId)) {
+            $match = Customer::query()->where('tax_id', $taxId)->first();
+
+            if ($match !== null) {
+                if ($legacyId === null || $match->legacy_id === null || (string) $match->legacy_id === (string) $legacyId) {
+                    return $match;
+                }
+            }
         }
 
         return null;
@@ -625,28 +667,18 @@ class LegacyDataImporter
     {
         $legacyClientId = $this->legacyIdFromCsv(LegacyCsvReader::value($data, 'cliente_id'));
 
-        if ($legacyClientId !== null && isset($this->customersByLegacyId[$legacyClientId])) {
+        if ($legacyClientId === null) {
+            return null;
+        }
+
+        if (isset($this->customersByLegacyId[$legacyClientId])) {
             return $this->customersByLegacyId[$legacyClientId];
         }
 
-        $commercialName = LegacyCsvReader::value($data, 'nombre_comercial');
-
-        if ($commercialName !== null) {
-            $match = $this->customersByCommercialName[$this->normalizeName($commercialName)] ?? null;
-
-            if ($match !== null) {
-                return $match;
-            }
-        }
-
-        if ($legacyClientId !== null) {
-            return Customer::query()
-                ->where('legacy_id', $legacyClientId)
-                ->orWhere('hubspot_company_id', $legacyClientId)
-                ->first();
-        }
-
-        return null;
+        return Customer::query()
+            ->where('legacy_id', $legacyClientId)
+            ->orWhere('hubspot_company_id', $legacyClientId)
+            ->first();
     }
 
     /**
@@ -800,7 +832,40 @@ class LegacyDataImporter
             return $hubspotId;
         }
 
-        return $existing?->hubspot_company_id;
+        if ($existing === null && (string) $owner->legacy_id !== (string) $hubspotId) {
+            $owner->update([
+                'hubspot_company_id' => $owner->legacy_id,
+            ]);
+        }
+
+        return $existing?->hubspot_company_id ?? $hubspotId;
+    }
+
+    /**
+     * @param  array<string, string>  $data
+     */
+    protected function buildInvoiceNumber(array $data, string $legacyInvoiceId, int $row): string
+    {
+        $explicit = LegacyCsvReader::value($data, 'numero_factura');
+
+        if (filled($explicit)) {
+            return strtoupper(trim($explicit));
+        }
+
+        $issuedAt = LegacyDateParser::parse(
+            LegacyCsvReader::value($data, 'fecha'),
+            'fecha',
+            $row,
+        );
+        $year = $issuedAt?->year ?? (int) now()->format('Y');
+        $prefix = $this->invoiceNumberGenerator->prefix().$year.'-';
+
+        return $prefix.str_pad(
+            $legacyInvoiceId,
+            $this->invoiceNumberGenerator->padding(),
+            '0',
+            STR_PAD_LEFT,
+        );
     }
 
     protected function decimalOrZero(?string $value): float

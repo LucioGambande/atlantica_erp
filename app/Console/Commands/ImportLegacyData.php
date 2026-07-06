@@ -8,22 +8,37 @@ use Throwable;
 
 class ImportLegacyData extends Command
 {
-    protected $signature = 'import:legacy-data {--dry-run : Simula la importación sin escribir en la base de datos}';
+    protected $signature = 'import:legacy-data
+        {--dry-run : Simula la importación sin escribir en la base de datos}
+        {--reset-invoices : Borra facturas, líneas, pagos y ledger antes de importar}
+        {--invoices-only : Solo importa facturas, líneas y pagos (no toca clientes)}';
 
     protected $description = 'Importa clientes, facturas, líneas y pagos históricos desde CSVs en la raíz del proyecto';
 
     public function handle(LegacyDataImporter $importer): int
     {
         $dryRun = (bool) $this->option('dry-run');
+        $resetInvoices = (bool) $this->option('reset-invoices');
+        $invoicesOnly = (bool) $this->option('invoices-only');
 
         if ($dryRun) {
             $this->warn('Modo dry-run: no se escribirá nada en la base de datos.');
         }
 
+        if ($resetInvoices && $dryRun) {
+            $this->warn('--reset-invoices se ignora en dry-run.');
+        }
+
+        if ($resetInvoices && ! $dryRun) {
+            $this->warn('Borrando facturas, líneas, pagos y movimientos de cuenta corriente...');
+            $importer->resetInvoiceData();
+            $this->info('Tablas de facturación vaciadas.');
+        }
+
         $this->info('Archivos esperados en la raíz del proyecto: clientes.csv, facturas.csv, lineas_factura.csv (pagos.csv opcional)');
 
         try {
-            $importer->import($dryRun);
+            $importer->import($dryRun, $invoicesOnly);
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
 
