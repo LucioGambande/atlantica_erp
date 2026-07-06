@@ -130,6 +130,7 @@ class PaymentResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
@@ -150,11 +151,12 @@ class PaymentResource extends Resource
             'index' => Pages\ListPayments::route('/'),
             'create' => Pages\CreatePayment::route('/create'),
             'view' => Pages\ViewPayment::route('/{record}'),
+            'edit' => Pages\EditPayment::route('/{record}/edit'),
         ];
     }
 
     public static function canEdit($record): bool
     {
-        return false;
+        return ErpAuthorization::userCan('manage invoices');
     }
 }

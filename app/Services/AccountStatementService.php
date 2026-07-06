@@ -79,6 +79,33 @@ class AccountStatementService
         );
     }
 
+    public function syncPayment(Payment $payment): void
+    {
+        $payment->loadMissing('customer', 'invoice', 'paymentMethod');
+
+        $entry = $this->findEntryFor($payment, LedgerEntry::TYPE_PAYMENT);
+
+        if ($entry === null) {
+            $this->registerPayment($payment);
+
+            return;
+        }
+
+        DB::transaction(function () use ($payment, $entry): void {
+            $amount = round((float) $payment->amount, 2);
+
+            $entry->update([
+                'customer_id' => $payment->customer_id,
+                'date' => Carbon::parse($payment->paid_at)->toDateString(),
+                'description' => $this->paymentDescription($payment),
+                'debit' => 0,
+                'credit' => $amount,
+            ]);
+
+            $this->recalculateRunningBalances($payment->customer);
+        });
+    }
+
     public function registerPayment(Payment $payment): ?LedgerEntry
     {
         if ($this->hasEntryFor($payment, LedgerEntry::TYPE_PAYMENT)) {

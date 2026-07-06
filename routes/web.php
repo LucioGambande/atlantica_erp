@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountStatementPrintController;
 use App\Http\Controllers\InvoicePrintController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,11 @@ Route::middleware('auth')->group(function () {
             ->name('invoices.print');
         Route::get('/admin/invoices/print/range', [InvoicePrintController::class, 'range'])
             ->name('invoices.print.range');
+    });
+
+    Route::middleware('role_or_permission:manage customers|manage invoices')->group(function (): void {
+        Route::get('/admin/customers/{customer}/statement/print', [AccountStatementPrintController::class, 'show'])
+            ->name('customers.statement.print');
     });
 });
 

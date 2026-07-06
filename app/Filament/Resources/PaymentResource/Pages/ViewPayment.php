@@ -12,6 +12,14 @@ class ViewPayment extends ViewRecord
 {
     protected static string $resource = PaymentResource::class;
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            \Filament\Actions\EditAction::make(),
+            \Filament\Actions\DeleteAction::make(),
+        ];
+    }
+
     public function infolist(Infolist $infolist): Infolist
     {
         return $infolist

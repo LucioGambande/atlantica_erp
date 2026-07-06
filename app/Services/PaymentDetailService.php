@@ -8,6 +8,7 @@ use App\Models\PaymentDetails\CardPaymentDetail;
 use App\Models\PaymentDetails\CashPaymentDetail;
 use App\Models\PaymentDetails\ChequePaymentDetail;
 use App\Models\PaymentDetails\GenericPaymentDetail;
+use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Support\PaymentDetailType;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +42,61 @@ class PaymentDetailService
                 'bank_name' => $data['bank_name'] ?? null,
             ]),
             default => GenericPaymentDetail::create([
+                'notes' => $data['notes'] ?? null,
+            ]),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function updateForPayment(Payment $payment, PaymentMethod $method, array $data): void
+    {
+        if ((int) $payment->payment_method_id !== (int) $method->id) {
+            $payment->detail?->delete();
+            $detail = $this->createForMethod($method, $data);
+            $payment->forceFill([
+                'payment_method_id' => $method->id,
+                'detail_type' => $method->detail_type,
+                'detail_id' => $detail->id,
+            ])->save();
+
+            return;
+        }
+
+        $detail = $payment->detail;
+
+        if ($detail === null) {
+            $created = $this->createForMethod($method, $data);
+            $payment->forceFill([
+                'detail_type' => $method->detail_type,
+                'detail_id' => $created->id,
+            ])->save();
+
+            return;
+        }
+
+        match ($method->detail_type) {
+            PaymentDetailType::BANK_TRANSFER => $detail->update([
+                'transaction_number' => $this->requiredString($data, 'transaction_number', 'El número de transacción es obligatorio.'),
+                'bank_reference' => $data['bank_reference'] ?? null,
+            ]),
+            PaymentDetailType::CARD => $detail->update([
+                'authorization_code' => $data['authorization_code'] ?? null,
+                'card_last_four' => $data['card_last_four'] ?? null,
+            ]),
+            PaymentDetailType::CASH => $detail->update([
+                'notes' => $data['notes'] ?? null,
+            ]),
+            PaymentDetailType::BIZUM => $detail->update([
+                'operation_code' => $data['operation_code'] ?? null,
+                'phone' => $data['phone'] ?? null,
+            ]),
+            PaymentDetailType::CHEQUE => $detail->update([
+                'cheque_number' => $this->requiredString($data, 'cheque_number', 'El número de cheque es obligatorio.'),
+                'bank_name' => $data['bank_name'] ?? null,
+            ]),
+            default => $detail->update([
                 'notes' => $data['notes'] ?? null,
             ]),
         };

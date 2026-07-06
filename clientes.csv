@@ -23,7 +23,7 @@ cliente_id,nombre_fiscal,nombre_comercial,nif_cif,direccion,ciudad,provincia,cod
 434668507348,,Siga La Vaca Hasta Marbella,,"C/ Quevedo 5, Local 10, 29660 Nueva Andalucía, Marbella",Marbella,,,ESP,,,,,,ISA
 434671299824,,El Rancho nel Bosco,,"Urb. Ricmar, Cmo. de los Madereros 100, 29604 Marbella",Marbella,,,ESP,,,,,,HERNAN ES EL DUEÑO
 434671512810,,BBQ-Grill Elviria,,"CC. y de Ocio de Elviria, Local 25, 29604 Marbella, Málaga",Marbella,,,ESP,,,,,,Habló Nicole. Ramiro es el encargado/dueño
-434668259555,,Criollo Pizzaneseria,,,Marbella,,,ESP,,,,,,Hablar con Pablo
+434668259555,,Criollo Pizzaneseria,,,Marbella,,,ESP,,,,,,Hab    lar con Pablo
 434668675261,,Chimi Txurri,,,Marbella,,,ESP,34951660190,,,,,HABLAR CON MIGUEL ANGEL
 434633128181,,Tafí Parrilla Argentina,,"Avda. Juan Vargas esq. Avda. Salamanca, 29670 San Pedro de Alcántara",Marbella,,,ESP,,,,,,hablar con luz
 434668545267,,La Estancia Steak & Wine,,"Plaza Manuel Cantos, Tetuán 9, 29601 Marbella",Marbella,,,ESP,,,,,,Hablar con Kevin
@@ -117,7 +117,7 @@ cliente_id,nombre_fiscal,nombre_comercial,nif_cif,direccion,ciudad,provincia,cod
 425052401863,,Pipazze,,"Av. Ramón y Cajal, 26, 29640 Fuengirola, Málaga",FUENGIROLA,,,ESP,,,,,,
 425054561520,,Poncho's,,"Edificio Sol Playa, C. Martínez Catena, 24, 29640 Fuengirola, Málaga",FUENGIROLA,,,ESP,,,,,,
 424834049249,,MADRE MIA,,"C. Torrealta, 1, 29640 Fuengirola, Málaga",FUENGIROLA,,,,,,,,,
-423549031616,,Las Tablas del Rey,B93551935,"PASEO MARITIMO REY DE ESPAÑA 142, BJ L3",FUENGIROLA,,,,,,,,,
+423549031616,,Las Tablas del Rey,,"PASEO MARITIMO REY DE ESPAÑA 142, BJ L3",FUENGIROLA,,,,,,,,,
 423629026512,,Cosquin,,,FUENGIROLA,,,,,,,,,
 422774485216,,DearTitus Restaurante & Cocktails,,"Paseo Marítimo Rey de España, 27",FUENGIROLA,,,,,,,,,
 422734154977,,Restaurante ALFRIEG SINCE 1971,,"Lope de Vega, 3",FUENGIROLA,,,,,,,,,

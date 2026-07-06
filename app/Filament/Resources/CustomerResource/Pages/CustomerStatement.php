@@ -65,6 +65,17 @@ class CustomerStatement extends Page implements HasForms, HasTable
     protected function getHeaderActions(): array
     {
         $actions = [
+            Actions\Action::make('print')
+                ->label('Imprimir')
+                ->icon('heroicon-o-printer')
+                ->url(fn (): string => route('customers.statement.print', [
+                    'customer' => $this->customerId,
+                    'from' => $this->dateFrom,
+                    'to' => $this->dateTo,
+                    'type' => $this->entryType,
+                    'format' => 'html',
+                ]))
+                ->openUrlInNewTab(),
             Actions\Action::make('editCustomer')
                 ->label('Editar cliente')
                 ->icon('heroicon-o-pencil-square')
@@ -181,7 +192,7 @@ class CustomerStatement extends Page implements HasForms, HasTable
             ])
             ->actions([
                 Tables\Actions\Action::make('viewReference')
-                    ->label('Ver')
+                    ->label(fn (LedgerEntry $record): string => $record->reference instanceof Payment ? 'Editar' : 'Ver')
                     ->icon('heroicon-o-arrow-top-right-on-square')
                     ->url(function (LedgerEntry $record): ?string {
                         if ($record->reference instanceof Invoice) {
@@ -189,7 +200,7 @@ class CustomerStatement extends Page implements HasForms, HasTable
                         }
 
                         if ($record->reference instanceof Payment) {
-                            return PaymentResource::getUrl('view', ['record' => $record->reference]);
+                            return PaymentResource::getUrl('edit', ['record' => $record->reference]);
                         }
 
                         return null;
