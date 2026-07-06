@@ -183,7 +183,7 @@ $user->assignRole('accountant');
 ### Importación legacy
 
 - Comando: `php artisan import:legacy-data {--dry-run}`
-- CSVs en `storage/app/imports/` (`clientes.csv`, `facturas.csv`, `lineas_factura.csv`, `pagos.csv`)
+- CSVs en la raíz del proyecto (`clientes.csv`, `facturas.csv`, `lineas_factura.csv`; `pagos.csv` opcional)
 - Idempotencia vía `customers.legacy_id`, `invoices.legacy_invoice_number`, `invoice_items.legacy_line_id`, `payments.legacy_payment_id`
 - Servicio: `App\Services\LegacyDataImporter`
 

@@ -80,7 +80,9 @@ class LegacyCsvReader
 
         return match ($header) {
             'nif', 'cif', 'nifcif' => 'nif_cif',
-            'nombre', 'razon_social', 'nombre_fiscal' => 'nombre_comercial',
+            'nombre_fiscal' => 'nombre_fiscal',
+            'nombre_comercial' => 'nombre_comercial',
+            'nombre' => 'nombre_comercial',
             'numero_factura', 'num_factura', 'invoice_number' => 'numero_factura',
             'total', 'importe_total' => 'total_factura',
             'fecha', 'fecha_emision', 'fecha_factura', 'issued_at' => 'fecha',

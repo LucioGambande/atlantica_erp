@@ -10,7 +10,7 @@ class ImportLegacyData extends Command
 {
     protected $signature = 'import:legacy-data {--dry-run : Simula la importación sin escribir en la base de datos}';
 
-    protected $description = 'Importa clientes, facturas, líneas y pagos históricos desde CSVs en storage/app/imports/';
+    protected $description = 'Importa clientes, facturas, líneas y pagos históricos desde CSVs en la raíz del proyecto';
 
     public function handle(LegacyDataImporter $importer): int
     {
@@ -20,7 +20,7 @@ class ImportLegacyData extends Command
             $this->warn('Modo dry-run: no se escribirá nada en la base de datos.');
         }
 
-        $this->info('Archivos esperados: clientes.csv, facturas.csv, lineas_factura.csv, pagos.csv');
+        $this->info('Archivos esperados en la raíz del proyecto: clientes.csv, facturas.csv, lineas_factura.csv (pagos.csv opcional)');
 
         try {
             $importer->import($dryRun);

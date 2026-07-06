@@ -23,7 +23,7 @@ class LegacyDataImporter
 
     protected bool $dryRun = false;
 
-    /** @var array<int, Customer> */
+    /** @var array<string, Customer> */
     protected array $customersByLegacyId = [];
 
     /** @var array<string, Customer> */
@@ -80,7 +80,7 @@ class LegacyDataImporter
     public function import(bool $dryRun = false): void
     {
         $this->dryRun = $dryRun;
-        $this->importPath = storage_path('app/imports');
+        $this->importPath = base_path();
         $this->resetState();
 
         $this->loadCsvFiles();
@@ -155,25 +155,28 @@ class LegacyDataImporter
 
     protected function loadCsvFiles(): void
     {
-        $files = [
-            'clientes' => 'clientes.csv',
-            'facturas' => 'facturas.csv',
-            'lineas' => 'lineas_factura.csv',
-            'pagos' => 'pagos.csv',
+        $required = [
+            'clientes.csv',
+            'facturas.csv',
+            'lineas_factura.csv',
         ];
 
-        foreach ($files as $key => $filename) {
+        foreach ($required as $filename) {
             $path = $this->importPath.'/'.$filename;
 
             if (! is_file($path)) {
-                throw new InvalidArgumentException("Falta el archivo requerido: storage/app/imports/{$filename}");
+                throw new InvalidArgumentException("Falta el archivo requerido: {$filename} (raíz del proyecto)");
             }
         }
 
         $this->customerRows = LegacyCsvReader::read($this->importPath.'/clientes.csv');
         $this->invoiceRows = LegacyCsvReader::read($this->importPath.'/facturas.csv');
         $this->lineRows = LegacyCsvReader::read($this->importPath.'/lineas_factura.csv');
-        $this->paymentRows = LegacyCsvReader::read($this->importPath.'/pagos.csv');
+
+        $pagosPath = $this->importPath.'/pagos.csv';
+        $this->paymentRows = is_file($pagosPath)
+            ? LegacyCsvReader::read($pagosPath)
+            : [];
     }
 
     protected function preloadLookups(): void
@@ -189,7 +192,11 @@ class LegacyDataImporter
 
         foreach (Customer::query()->get() as $customer) {
             if ($customer->legacy_id !== null) {
-                $this->customersByLegacyId[(int) $customer->legacy_id] = $customer;
+                $this->customersByLegacyId[(string) $customer->legacy_id] = $customer;
+            }
+
+            if ($customer->hubspot_company_id !== null) {
+                $this->customersByLegacyId[(string) $customer->hubspot_company_id] = $customer;
             }
 
             $this->customersByCommercialName[$this->normalizeName($customer->name)] = $customer;
@@ -208,16 +215,23 @@ class LegacyDataImporter
             $row = $entry['row'];
             $data = $entry['data'];
 
-            $legacyId = $this->intOrNull(LegacyCsvReader::value($data, 'cliente_id'));
-            $name = LegacyCsvReader::value($data, 'nombre_comercial');
+            $legacyId = $this->legacyIdFromCsv(LegacyCsvReader::value($data, 'cliente_id'));
+            $commercialName = LegacyCsvReader::value($data, 'nombre_comercial');
+            $fiscalName = LegacyCsvReader::value($data, 'nombre_fiscal');
+            $name = $commercialName ?: $fiscalName;
 
             if ($legacyId === null && blank($name)) {
                 $this->customerStats['skipped']++;
 
-                throw new InvalidArgumentException("Fila {$row} en clientes.csv: falta cliente_id y nombre_comercial.");
+                throw new InvalidArgumentException("Fila {$row} en clientes.csv: falta cliente_id y nombre.");
             }
 
             $taxId = $this->normalizeTaxId(LegacyCsvReader::value($data, 'nif_cif'));
+            $hubspotId = LegacyCsvReader::value($data, 'hubspot_company_id') ?? $legacyId;
+
+            $existing = $this->findExistingCustomer($taxId, $legacyId);
+            $hubspotId = $this->resolveHubspotCompanyId($hubspotId, $existing);
+
             $attributes = [
                 'legacy_id' => $legacyId,
                 'name' => $name ?? 'Cliente sin nombre',
@@ -230,10 +244,9 @@ class LegacyDataImporter
                 'country' => LegacyCsvReader::value($data, 'pais') ?? 'ES',
                 'customer_type' => $this->mapCustomerType(LegacyCsvReader::value($data, 'tipo_cliente')),
                 'credit_limit' => $this->decimalOrZero(LegacyCsvReader::value($data, 'limite_credito')),
-                'hubspot_company_id' => LegacyCsvReader::value($data, 'hubspot_company_id'),
+                'hubspot_company_id' => $hubspotId,
             ];
 
-            $existing = $this->findExistingCustomer($taxId, $legacyId);
             $action = $existing === null ? 'created' : 'updated';
 
             if (! $this->dryRun) {
@@ -248,6 +261,10 @@ class LegacyDataImporter
 
             if ($legacyId !== null) {
                 $this->customersByLegacyId[$legacyId] = $customer;
+            }
+
+            if (filled($hubspotId)) {
+                $this->customersByLegacyId[(string) $hubspotId] = $customer;
             }
 
             if (filled($name)) {
@@ -265,18 +282,28 @@ class LegacyDataImporter
             $data = $entry['data'];
 
             $legacyInvoiceId = LegacyCsvReader::value($data, 'factura_id');
-            $invoiceNumber = LegacyCsvReader::value($data, 'numero_factura');
+
+            if ($this->shouldSkipInvalidInvoiceRow($data)) {
+                $this->invoiceStats['skipped']++;
+                $this->skippedInvoices[] = "Fila {$row}: fila vacía o inválida — omitida";
+
+                continue;
+            }
+
+            $invoiceNumber = LegacyCsvReader::value($data, 'numero_factura')
+                ?? ($legacyInvoiceId !== null ? 'LEGACY-'.$legacyInvoiceId : null);
             $estado = Str::lower((string) LegacyCsvReader::value($data, 'estado'));
 
-            if ($this->shouldSkipCancelledInvoice($estado)) {
+            if ($this->shouldSkipCancelledInvoiceRow($data)) {
                 $this->invoiceStats['skipped']++;
-                $this->skippedInvoices[] = "Fila {$row}: factura cancelada ({$invoiceNumber}) — omitida";
+                $label = $invoiceNumber ?? $legacyInvoiceId ?? '(sin id)';
+                $this->skippedInvoices[] = "Fila {$row}: factura cancelada ({$label}) — omitida";
 
                 continue;
             }
 
             if (blank($invoiceNumber)) {
-                throw new InvalidArgumentException("Fila {$row} en facturas.csv: falta numero_factura.");
+                throw new InvalidArgumentException("Fila {$row} en facturas.csv: falta factura_id / numero_factura.");
             }
 
             $customer = $this->resolveCustomerForInvoice($data, $row);
@@ -333,15 +360,16 @@ class LegacyDataImporter
 
     protected function importInvoiceLines(): void
     {
-        $lineFallback = 0;
-
         foreach ($this->lineRows as $entry) {
             $row = $entry['row'];
             $data = $entry['data'];
             $legacyInvoiceId = LegacyCsvReader::value($data, 'factura_id');
 
-            if (blank($legacyInvoiceId)) {
-                throw new InvalidArgumentException("Fila {$row} en lineas_factura.csv: falta factura_id.");
+            if (blank($legacyInvoiceId) || $this->isExcelErrorValue($legacyInvoiceId)) {
+                $this->lineStats['skipped']++;
+                $this->skippedLines[] = "Fila {$row}: línea inválida — omitida";
+
+                continue;
             }
 
             $invoice = $this->invoicesByLegacyId[$legacyInvoiceId] ?? null;
@@ -353,11 +381,20 @@ class LegacyDataImporter
                 continue;
             }
 
-            $legacyLineId = $this->intOrNull(LegacyCsvReader::value($data, 'linea_id')) ?? ++$lineFallback;
+            $legacyLineId = $row;
             $sku = LegacyCsvReader::value($data, 'sku');
-            $quantity = $this->intOrNull(LegacyCsvReader::value($data, 'cantidad')) ?? 0;
+            $cantidadRaw = LegacyCsvReader::value($data, 'cantidad');
 
-            if ($quantity <= 0) {
+            if ($cantidadRaw === null || $this->isExcelErrorValue($cantidadRaw)) {
+                $this->lineStats['skipped']++;
+                $this->skippedLines[] = "Fila {$row}: cantidad inválida — línea omitida";
+
+                continue;
+            }
+
+            $quantity = $this->intOrNull($cantidadRaw);
+
+            if ($quantity === null || $quantity === 0) {
                 throw new InvalidArgumentException("Fila {$row} en lineas_factura.csv: cantidad inválida.");
             }
 
@@ -496,7 +533,13 @@ class LegacyDataImporter
             ->values();
 
         $invoiceNumbers = collect($this->invoiceRows)
-            ->map(fn (array $entry): ?string => LegacyCsvReader::value($entry['data'], 'numero_factura'))
+            ->map(function (array $entry): ?string {
+                $data = $entry['data'];
+                $legacyId = LegacyCsvReader::value($data, 'factura_id');
+
+                return LegacyCsvReader::value($data, 'numero_factura')
+                    ?? ($legacyId !== null ? 'LEGACY-'.$legacyId : null);
+            })
             ->filter()
             ->values();
 
@@ -535,7 +578,7 @@ class LegacyDataImporter
         ];
     }
 
-    protected function findExistingCustomer(?string $taxId, ?int $legacyId): ?Customer
+    protected function findExistingCustomer(?string $taxId, ?string $legacyId): ?Customer
     {
         if (filled($taxId)) {
             $match = Customer::query()->where('tax_id', $taxId)->first();
@@ -546,7 +589,13 @@ class LegacyDataImporter
         }
 
         if ($legacyId !== null) {
-            return Customer::query()->where('legacy_id', $legacyId)->first();
+            $match = Customer::query()->where('legacy_id', $legacyId)->first();
+
+            if ($match !== null) {
+                return $match;
+            }
+
+            return Customer::query()->where('hubspot_company_id', $legacyId)->first();
         }
 
         return null;
@@ -574,7 +623,7 @@ class LegacyDataImporter
      */
     protected function resolveCustomerForInvoice(array $data, int $row): ?Customer
     {
-        $legacyClientId = $this->intOrNull(LegacyCsvReader::value($data, 'cliente_id'));
+        $legacyClientId = $this->legacyIdFromCsv(LegacyCsvReader::value($data, 'cliente_id'));
 
         if ($legacyClientId !== null && isset($this->customersByLegacyId[$legacyClientId])) {
             return $this->customersByLegacyId[$legacyClientId];
@@ -591,7 +640,10 @@ class LegacyDataImporter
         }
 
         if ($legacyClientId !== null) {
-            return Customer::query()->where('legacy_id', $legacyClientId)->first();
+            return Customer::query()
+                ->where('legacy_id', $legacyClientId)
+                ->orWhere('hubspot_company_id', $legacyClientId)
+                ->first();
         }
 
         return null;
@@ -602,7 +654,7 @@ class LegacyDataImporter
      */
     protected function resolveCustomerForPayment(array $data, int $row, ?string $legacyInvoiceId): ?Customer
     {
-        $legacyClientId = $this->intOrNull(LegacyCsvReader::value($data, 'cliente_id'));
+        $legacyClientId = $this->legacyIdFromCsv(LegacyCsvReader::value($data, 'cliente_id'));
 
         if ($legacyClientId !== null && isset($this->customersByLegacyId[$legacyClientId])) {
             return $this->customersByLegacyId[$legacyClientId];
@@ -650,11 +702,46 @@ class LegacyDataImporter
         };
     }
 
+    /**
+     * @param  array<string, string>  $data
+     */
+    protected function shouldSkipInvalidInvoiceRow(array $data): bool
+    {
+        $legacyInvoiceId = LegacyCsvReader::value($data, 'factura_id');
+
+        if ($legacyInvoiceId === null) {
+            return true;
+        }
+
+        return in_array(Str::upper($legacyInvoiceId), ['#N/A', '#VALUE!', '#REF!', 'N/A'], true);
+    }
+
+    protected function isExcelErrorValue(string $value): bool
+    {
+        return in_array(Str::upper(trim($value)), ['#N/A', '#VALUE!', '#REF!', 'N/A'], true);
+    }
+
     protected function shouldSkipCancelledInvoice(?string $estado): bool
     {
         $normalized = Str::lower((string) $estado);
 
         return in_array($normalized, ['cancelar', 'cancelada', 'cancelado', 'anulada', 'anulado'], true);
+    }
+
+    /**
+     * @param  array<string, string>  $data
+     */
+    protected function shouldSkipCancelledInvoiceRow(array $data): bool
+    {
+        if ($this->shouldSkipCancelledInvoice(LegacyCsvReader::value($data, 'estado'))) {
+            return true;
+        }
+
+        $fecha = Str::upper(trim((string) LegacyCsvReader::value($data, 'fecha')));
+        $facturaId = Str::upper(trim((string) LegacyCsvReader::value($data, 'factura_id')));
+
+        return in_array($fecha, ['CANCELAR', 'CANCELADA', 'ANULAR', 'ANULADA'], true)
+            || in_array($facturaId, ['CANCELAR', 'CANCELADA'], true);
     }
 
     protected function mapCustomerType(?string $raw): string
@@ -686,6 +773,34 @@ class LegacyDataImporter
         }
 
         return (int) $value;
+    }
+
+    protected function legacyIdFromCsv(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        return trim($value);
+    }
+
+    protected function resolveHubspotCompanyId(?string $hubspotId, ?Customer $existing): ?string
+    {
+        if (blank($hubspotId)) {
+            return $existing?->hubspot_company_id;
+        }
+
+        $owner = Customer::query()->where('hubspot_company_id', $hubspotId)->first();
+
+        if ($owner === null) {
+            return $hubspotId;
+        }
+
+        if ($existing !== null && (int) $owner->id === (int) $existing->id) {
+            return $hubspotId;
+        }
+
+        return $existing?->hubspot_company_id;
     }
 
     protected function decimalOrZero(?string $value): float

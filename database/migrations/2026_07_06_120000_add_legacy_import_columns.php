@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('customers', function (Blueprint $table): void {
-            $table->unsignedBigInteger('legacy_id')->nullable()->unique()->after('id');
+            $table->string('legacy_id', 50)->nullable()->unique()->after('id');
         });
 
         Schema::table('invoices', function (Blueprint $table): void {
