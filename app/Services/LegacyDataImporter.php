@@ -51,6 +51,9 @@ class LegacyDataImporter
     /** @var array{created: int, updated: int, skipped: int} */
     protected array $paymentStats = ['created' => 0, 'updated' => 0, 'skipped' => 0];
 
+    /** @var array{created: int, existing: int} */
+    protected array $productStats = ['created' => 0, 'existing' => 0];
+
     /** @var list<string> */
     protected array $skippedInvoices = [];
 
@@ -117,6 +120,7 @@ class LegacyDataImporter
             }
 
             $this->importInvoices();
+            $this->syncProductsFromInvoiceLines();
             $this->importInvoiceLines();
             $this->importPayments();
 
@@ -160,6 +164,7 @@ class LegacyDataImporter
             'invoices' => $this->invoiceStats,
             'lines' => $this->lineStats,
             'payments' => $this->paymentStats,
+            'products' => $this->productStats,
             'skipped_invoices' => $this->skippedInvoices,
             'skipped_lines' => $this->skippedLines,
             'skipped_payments' => $this->skippedPayments,
@@ -176,6 +181,7 @@ class LegacyDataImporter
         $this->invoiceStats = ['created' => 0, 'updated' => 0, 'skipped' => 0];
         $this->lineStats = ['created' => 0, 'updated' => 0, 'skipped' => 0];
         $this->paymentStats = ['created' => 0, 'updated' => 0, 'skipped' => 0];
+        $this->productStats = ['created' => 0, 'existing' => 0];
         $this->skippedInvoices = [];
         $this->skippedLines = [];
         $this->skippedPayments = [];
@@ -386,6 +392,63 @@ class LegacyDataImporter
         }
     }
 
+    protected function syncProductsFromInvoiceLines(): void
+    {
+        /** @var array<string, array{name: string, sale_price: float}> $catalog */
+        $catalog = [];
+
+        foreach ($this->lineRows as $entry) {
+            $data = $entry['data'];
+            $legacyInvoiceId = LegacyCsvReader::value($data, 'factura_id');
+
+            if (blank($legacyInvoiceId) || $this->isExcelErrorValue($legacyInvoiceId)) {
+                continue;
+            }
+
+            $sku = LegacyCsvReader::value($data, 'sku');
+
+            if ($sku === null || $this->isExcelErrorValue($sku)) {
+                continue;
+            }
+
+            $cantidadRaw = LegacyCsvReader::value($data, 'cantidad');
+
+            if ($cantidadRaw === null || $this->isExcelErrorValue($cantidadRaw)) {
+                continue;
+            }
+
+            $name = LegacyCsvReader::value($data, 'descripcion') ?? $sku;
+            $salePrice = $this->decimalOrZero(LegacyCsvReader::value($data, 'precio_unitario'));
+
+            $catalog[$sku] ??= [
+                'name' => $name,
+                'sale_price' => $salePrice,
+            ];
+        }
+
+        foreach ($catalog as $sku => $info) {
+            if (isset($this->productIdsBySku[$sku])) {
+                $this->productStats['existing']++;
+
+                continue;
+            }
+
+            if (! $this->dryRun) {
+                $product = Product::query()->create([
+                    'sku' => $sku,
+                    'name' => $info['name'],
+                    'sale_price' => $info['sale_price'],
+                    'purchase_price' => 0,
+                    'stock' => 0,
+                ]);
+
+                $this->productIdsBySku[$sku] = $product->id;
+            }
+
+            $this->productStats['created']++;
+        }
+    }
+
     protected function importInvoiceLines(): void
     {
         foreach ($this->lineRows as $entry) {
@@ -413,6 +476,13 @@ class LegacyDataImporter
             $sku = LegacyCsvReader::value($data, 'sku');
             $cantidadRaw = LegacyCsvReader::value($data, 'cantidad');
 
+            if ($sku === null || $this->isExcelErrorValue($sku)) {
+                $this->lineStats['skipped']++;
+                $this->skippedLines[] = "Fila {$row}: sku inválido — línea omitida";
+
+                continue;
+            }
+
             if ($cantidadRaw === null || $this->isExcelErrorValue($cantidadRaw)) {
                 $this->lineStats['skipped']++;
                 $this->skippedLines[] = "Fila {$row}: cantidad inválida — línea omitida";
@@ -426,11 +496,17 @@ class LegacyDataImporter
                 throw new InvalidArgumentException("Fila {$row} en lineas_factura.csv: cantidad inválida.");
             }
 
+            $productId = $this->productIdsBySku[$sku] ?? null;
+
+            if ($productId === null) {
+                throw new InvalidArgumentException("Fila {$row} en lineas_factura.csv: el SKU {$sku} no tiene producto en catálogo.");
+            }
+
             $attributes = [
                 'invoice_id' => $invoice->id ?? 0,
                 'legacy_line_id' => $legacyLineId,
-                'product_id' => $sku !== null ? ($this->productIdsBySku[$sku] ?? null) : null,
-                'description' => LegacyCsvReader::value($data, 'descripcion') ?? ($sku ?? 'Línea importada'),
+                'product_id' => $productId,
+                'description' => LegacyCsvReader::value($data, 'descripcion') ?? $sku,
                 'quantity' => $quantity,
                 'unit_price' => $this->decimalOrZero(LegacyCsvReader::value($data, 'precio_unitario')),
                 'discount_percent' => $this->decimalOrZero(LegacyCsvReader::value($data, 'descuento')),

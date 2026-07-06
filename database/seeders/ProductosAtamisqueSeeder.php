@@ -23,6 +23,8 @@ class ProductosAtamisqueSeeder extends Seeder
             ['sku' => 'SER-CAB-750', 'name' => 'Serbal Cabernet Franc',   'sale_price' => 6.28,  'purchase_price' => 0, 'stock' => 0],
             ['sku' => 'SER-PIN-750', 'name' => 'Serbal Pinot Noir',       'sale_price' => 6.28,  'purchase_price' => 0, 'stock' => 0],
             ['sku' => 'SER-CHA-750', 'name' => 'Serbal Chardonnay',       'sale_price' => 6.28,  'purchase_price' => 0, 'stock' => 0],
+            ['sku' => 'SER-SBL-750', 'name' => 'Serbal Sauvignon Blanc',  'sale_price' => 6.28,  'purchase_price' => 0, 'stock' => 0],
+            ['sku' => 'SER-ROS-750', 'name' => 'Serbal Rosé',             'sale_price' => 6.28,  'purchase_price' => 0, 'stock' => 0],
             // Línea Catalpa
             ['sku' => 'CAT-MAL-750', 'name' => 'Catalpa Malbec',          'sale_price' => 9.25,  'purchase_price' => 0, 'stock' => 0],
             ['sku' => 'CAT-MER-750', 'name' => 'Catalpa Merlot',          'sale_price' => 9.25,  'purchase_price' => 0, 'stock' => 0],
@@ -48,6 +50,6 @@ class ProductosAtamisqueSeeder extends Seeder
         }
 
         $this->command->info('✅ Proveedor "Bodega Atamisque" creado (ID: '.$proveedorId.')');
-        $this->command->info('✅ 12 productos insertados (se omiten duplicados por SKU)');
+        $this->command->info('✅ 14 productos insertados (se omiten duplicados por SKU)');
     }
 }

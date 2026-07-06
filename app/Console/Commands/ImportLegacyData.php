@@ -55,6 +55,7 @@ class ImportLegacyData extends Command
                 ['Clientes', $summary['customers']['created'], $summary['customers']['updated'], $summary['customers']['skipped']],
                 ['Facturas', $summary['invoices']['created'], $summary['invoices']['updated'], $summary['invoices']['skipped']],
                 ['Líneas', $summary['lines']['created'], $summary['lines']['updated'], $summary['lines']['skipped']],
+                ['Productos (catálogo)', $summary['products']['created'], $summary['products']['existing'], '—'],
                 ['Pagos', $summary['payments']['created'], $summary['payments']['updated'], $summary['payments']['skipped']],
             ],
         );
