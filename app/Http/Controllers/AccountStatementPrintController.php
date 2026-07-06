@@ -45,6 +45,8 @@ class AccountStatementPrintController extends Controller
             'pdfUrl' => null,
         ])
             ->setPaper('a4', 'portrait')
+            ->setOption('defaultFont', 'DejaVu Sans')
+            ->setOption('isHtml5ParserEnabled', true)
             ->stream($this->printService->pdfFilename($customer));
     }
 }
