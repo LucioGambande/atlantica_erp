@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Payment extends Model
@@ -28,6 +29,21 @@ class Payment extends Model
             'amount' => 'decimal:2',
             'paid_at' => 'datetime',
         ];
+    }
+
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(PaymentAllocation::class);
+    }
+
+    public function allocatedAmount(): float
+    {
+        return round((float) $this->allocations()->sum('amount'), 2);
+    }
+
+    public function unallocatedAmount(): float
+    {
+        return max(0, round((float) $this->amount - $this->allocatedAmount(), 2));
     }
 
     public function customer(): BelongsTo

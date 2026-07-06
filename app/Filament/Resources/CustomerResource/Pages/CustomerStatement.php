@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\CustomerResource\Pages;
 
+use App\Filament\Forms\PaymentAllocationForm;
+use App\Filament\Forms\PaymentDetailForm;
 use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\InvoiceResource;
 use App\Filament\Resources\PaymentResource;
@@ -10,6 +12,8 @@ use App\Models\Invoice;
 use App\Models\LedgerEntry;
 use App\Models\Payment;
 use App\Services\AccountStatementService;
+use App\Services\PaymentService;
+use App\Support\ErpAuthorization;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -21,6 +25,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Support\Carbon;
+use InvalidArgumentException;
 
 class CustomerStatement extends Page implements HasForms, HasTable
 {
@@ -65,6 +70,61 @@ class CustomerStatement extends Page implements HasForms, HasTable
     protected function getHeaderActions(): array
     {
         $actions = [
+            Actions\Action::make('registerPayment')
+                ->label('Registrar cobro')
+                ->icon('heroicon-o-banknotes')
+                ->color('success')
+                ->visible(fn (): bool => ErpAuthorization::userCan('manage invoices'))
+                ->form([
+                    Forms\Components\TextInput::make('amount')
+                        ->label('Importe del cobro')
+                        ->required()
+                        ->numeric()
+                        ->minValue(0.01)
+                        ->step(0.01)
+                        ->live(onBlur: true),
+                    PaymentAllocationForm::allocatedSummaryPlaceholder(),
+                    PaymentAllocationForm::allocationsRepeater($this->customerId),
+                    PaymentDetailForm::methodSelect(),
+                    PaymentDetailForm::detailsSection(),
+                    Forms\Components\DateTimePicker::make('paid_at')
+                        ->label('Fecha de pago')
+                        ->required()
+                        ->default(now()),
+                ])
+                ->fillForm(fn (): array => [
+                    'allocations' => [],
+                ])
+                ->mutateFormDataUsing(function (array $data): array {
+                    $data['customer_id'] = $this->customerId;
+
+                    return $data;
+                })
+                ->action(function (array $data): void {
+                    try {
+                        app(PaymentService::class)->registerPayment([
+                            'customer_id' => $this->customerId,
+                            'amount' => $data['amount'],
+                            'payment_method_id' => $data['payment_method_id'],
+                            'detail' => is_array($data['detail'] ?? null) ? $data['detail'] : [],
+                            'paid_at' => $data['paid_at'] ?? now(),
+                            'allocations' => is_array($data['allocations'] ?? null) ? $data['allocations'] : [],
+                        ]);
+
+                        $this->resetTable();
+
+                        Notification::make()
+                            ->title('Cobro registrado')
+                            ->success()
+                            ->send();
+                    } catch (InvalidArgumentException $exception) {
+                        Notification::make()
+                            ->title('No se pudo registrar el cobro')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
             Actions\Action::make('print')
                 ->label('Imprimir')
                 ->icon('heroicon-o-printer')

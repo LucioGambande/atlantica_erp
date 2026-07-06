@@ -55,9 +55,18 @@ class InvoiceResource extends Resource
     public static function markAsPaidFormSchema(Invoice $invoice): array
     {
         return [
-            Forms\Components\Placeholder::make('amount_preview')
-                ->label('Importe a registrar')
+            Forms\Components\Placeholder::make('remaining_preview')
+                ->label('Saldo pendiente')
                 ->content(Number::currency($invoice->remainingAmount(), 'EUR')),
+            Forms\Components\TextInput::make('amount')
+                ->label('Importe del cobro')
+                ->required()
+                ->numeric()
+                ->default(fn (): float => $invoice->remainingAmount())
+                ->minValue(0.01)
+                ->maxValue(fn (): float => $invoice->remainingAmount())
+                ->step(0.01)
+                ->helperText('Podés registrar un pago parcial o el total pendiente.'),
             PaymentDetailForm::methodSelect(),
             PaymentDetailForm::detailsSection(),
             Forms\Components\DateTimePicker::make('paid_at')
@@ -89,16 +98,24 @@ class InvoiceResource extends Resource
     public static function registerInvoicePayment(Invoice $invoice, array $data): void
     {
         try {
-            app(PaymentService::class)->registerInvoicePayment(
+            $payment = app(PaymentService::class)->registerInvoicePayment(
                 $invoice,
                 (int) $data['payment_method_id'],
                 is_array($data['detail'] ?? null) ? $data['detail'] : [],
                 isset($data['paid_at']) ? Carbon::parse($data['paid_at']) : null,
+                isset($data['amount']) ? (float) $data['amount'] : null,
             );
 
+            $invoice->refresh();
+
+            $title = $invoice->remainingAmount() > 0 ? 'Pago parcial registrado' : 'Pago registrado';
+            $body = $invoice->remainingAmount() > 0
+                ? 'Quedan '.Number::currency($invoice->remainingAmount(), 'EUR').' pendientes en la factura.'
+                : 'La factura quedó liquidada.';
+
             Notification::make()
-                ->title('Pago registrado')
-                ->body('La factura quedó marcada como pagada.')
+                ->title($title)
+                ->body($body)
                 ->success()
                 ->send();
         } catch (InvalidArgumentException $exception) {
@@ -301,18 +318,14 @@ class InvoiceResource extends Resource
                     ->extraHeaderAttributes(TableUi::headerSelectFilter('status', [
                         'draft' => 'Borrador',
                         'issued' => 'Emitida',
+                        'partial' => 'Parcial',
                         'paid' => 'Pagada',
                     ]))
-                    ->formatStateUsing(fn (Invoice $record): string => match (true) {
-                        $record->isCancelled() => 'Cancelada',
-                        $record->status === 'draft' => 'Borrador',
-                        $record->status === 'issued' => 'Emitida',
-                        $record->status === 'paid' => 'Pagada',
-                        default => $record->status,
-                    })
+                    ->formatStateUsing(fn (Invoice $record): string => $record->paymentStatusLabel())
                     ->color(fn (Invoice $record): string => match (true) {
                         $record->isCancelled() => 'danger',
                         $record->status === 'draft' => 'gray',
+                        $record->isPartiallyPaid() => 'info',
                         $record->status === 'issued' => 'warning',
                         $record->status === 'paid' => 'success',
                         default => 'gray',
@@ -328,8 +341,16 @@ class InvoiceResource extends Resource
                     ->money('EUR')
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('paymentMethod.name')
-                    ->label('Forma de pago')
+                Tables\Columns\TextColumn::make('paid_amount')
+                    ->label('Cobrado')
+                    ->state(fn (Invoice $record): float => $record->paidAmount())
+                    ->money('EUR')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('remaining_amount')
+                    ->label('Pendiente')
+                    ->state(fn (Invoice $record): float => $record->remainingAmount())
+                    ->money('EUR')
+                    ->color(fn (Invoice $record): string => $record->remainingAmount() > 0 ? 'danger' : 'success')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('issued_at')
                     ->label('Emitida')

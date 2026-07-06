@@ -24,6 +24,9 @@ class PaymentController extends Controller
             'payment_method_id' => ['required', 'integer', 'exists:payment_methods,id'],
             'detail' => ['nullable', 'array'],
             'paid_at' => ['required', 'date'],
+            'allocations' => ['nullable', 'array'],
+            'allocations.*.invoice_id' => ['required_with:allocations', 'integer', 'exists:invoices,id'],
+            'allocations.*.amount' => ['required_with:allocations', 'numeric', 'gt:0'],
         ]);
 
         if ($validator->fails()) {

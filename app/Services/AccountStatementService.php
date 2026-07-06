@@ -422,6 +422,22 @@ class AccountStatementService
 
     protected function paymentDescription(Payment $payment): string
     {
+        $payment->loadMissing('allocations.invoice', 'paymentMethod', 'invoice');
+
+        if ($payment->allocations->isNotEmpty()) {
+            $parts = $payment->allocations
+                ->map(function ($allocation): string {
+                    $invoiceNumber = $allocation->invoice?->invoice_number ?? 'Factura';
+
+                    return $invoiceNumber.': '.number_format((float) $allocation->amount, 2, ',', '.').' €';
+                })
+                ->all();
+
+            $method = $payment->paymentMethod?->name ?? 'Pago';
+
+            return $method.' — '.implode(' · ', $parts);
+        }
+
         $method = $payment->paymentMethod?->name ?? 'Pago';
         $invoiceRef = $payment->invoice?->invoice_number;
 

@@ -21,11 +21,19 @@ class EditPayment extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        $this->getRecord()->loadMissing('detail');
+        $this->getRecord()->loadMissing('detail', 'allocations');
 
         if ($this->getRecord()->detail !== null) {
             $data['detail'] = $this->getRecord()->detail->toArray();
         }
+
+        $data['allocations'] = $this->getRecord()->allocations
+            ->map(fn ($allocation): array => [
+                'invoice_id' => $allocation->invoice_id,
+                'amount' => $allocation->amount,
+            ])
+            ->values()
+            ->all();
 
         return $data;
     }

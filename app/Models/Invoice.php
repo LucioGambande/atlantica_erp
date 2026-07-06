@@ -137,9 +137,40 @@ class Invoice extends Model
         return $this->document_type === 'invoice' && ! $this->isCancelled();
     }
 
+    public function paymentAllocations(): HasMany
+    {
+        return $this->hasMany(PaymentAllocation::class);
+    }
+
     public function paidAmount(): float
     {
-        return round((float) $this->payments()->sum('amount'), 2);
+        return round((float) $this->paymentAllocations()->sum('amount'), 2);
+    }
+
+    public function isPartiallyPaid(): bool
+    {
+        return $this->paidAmount() > 0 && $this->remainingAmount() > 0;
+    }
+
+    public function paymentStatusLabel(): string
+    {
+        if ($this->isCancelled()) {
+            return 'Cancelada';
+        }
+
+        if ($this->status === 'draft') {
+            return 'Borrador';
+        }
+
+        if ($this->status === 'paid' || $this->remainingAmount() <= 0) {
+            return 'Pagada';
+        }
+
+        if ($this->isPartiallyPaid()) {
+            return 'Parcial';
+        }
+
+        return 'Emitida';
     }
 
     public function remainingAmount(): float
@@ -160,7 +191,7 @@ class Invoice extends Model
     {
         return $this->document_type === 'invoice'
             && ! $this->isCancelled()
-            && $this->status === 'issued'
+            && in_array($this->status, ['issued', 'paid'], true)
             && $this->remainingAmount() > 0;
     }
 

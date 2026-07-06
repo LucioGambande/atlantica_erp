@@ -2,19 +2,19 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\PaymentAllocationForm;
 use App\Filament\Forms\PaymentDetailForm;
 use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\PaymentResource\Pages;
-use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\PaymentDetailService;
 use App\Support\ErpAuthorization;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class PaymentResource extends Resource
 {
@@ -51,26 +51,17 @@ class PaymentResource extends Resource
                     ->relationship('customer', 'name')
                     ->required()
                     ->searchable()
-                    ->preload(),
-                Forms\Components\Select::make('invoice_id')
-                    ->label('Factura')
-                    ->relationship(
-                        name: 'invoice',
-                        titleAttribute: 'invoice_number',
-                        modifyQueryUsing: fn (Builder $query) => $query->with('customer'),
-                    )
-                    ->getOptionLabelFromRecordUsing(
-                        fn (Invoice $record): string => $record->invoice_number.' — '.($record->customer?->name ?? '')
-                    )
-                    ->searchable()
                     ->preload()
-                    ->nullable(),
+                    ->live(),
                 Forms\Components\TextInput::make('amount')
-                    ->label('Importe')
+                    ->label('Importe del cobro')
                     ->required()
                     ->numeric()
                     ->minValue(0.01)
-                    ->step(0.01),
+                    ->step(0.01)
+                    ->live(onBlur: true),
+                PaymentAllocationForm::allocatedSummaryPlaceholder(),
+                PaymentAllocationForm::allocationsRepeater(),
                 PaymentDetailForm::methodSelect(),
                 PaymentDetailForm::detailsSection(),
                 Forms\Components\DateTimePicker::make('paid_at')
@@ -92,14 +83,32 @@ class PaymentResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('invoice.invoice_number')
-                    ->label('Factura')
-                    ->searchable()
-                    ->sortable()
+                Tables\Columns\TextColumn::make('allocations_summary')
+                    ->label('Imputado a')
+                    ->state(function (Payment $record): string {
+                        $record->loadMissing('allocations.invoice');
+
+                        if ($record->allocations->isEmpty()) {
+                            return $record->unallocatedAmount() > 0 ? 'Anticipo sin asignar' : '—';
+                        }
+
+                        return $record->allocations
+                            ->map(fn ($allocation): string => ($allocation->invoice?->invoice_number ?? 'Factura')
+                                .': '.number_format((float) $allocation->amount, 2, ',', '.').' €')
+                            ->implode(' · ');
+                    })
+                    ->wrap()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('amount')
+                    ->label('Cobro')
                     ->money('EUR')
                     ->sortable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('unallocated_amount')
+                    ->label('Sin asignar')
+                    ->state(fn (Payment $record): float => $record->unallocatedAmount())
+                    ->money('EUR')
+                    ->color(fn (Payment $record): string => $record->unallocatedAmount() > 0 ? 'warning' : 'success')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('paymentMethod.name')
                     ->label('Forma de pago')
@@ -122,10 +131,10 @@ class PaymentResource extends Resource
                         Forms\Components\DatePicker::make('from')->label('Pagado desde'),
                         Forms\Components\DatePicker::make('until')->label('Pagado hasta'),
                     ])
-                    ->query(function (Builder $query, array $data): Builder {
+                    ->query(function ($query, array $data) {
                         return $query
-                            ->when($data['from'] ?? null, fn (Builder $q) => $q->whereDate('paid_at', '>=', $data['from']))
-                            ->when($data['until'] ?? null, fn (Builder $q) => $q->whereDate('paid_at', '<=', $data['until']));
+                            ->when($data['from'] ?? null, fn ($q) => $q->whereDate('paid_at', '>=', $data['from']))
+                            ->when($data['until'] ?? null, fn ($q) => $q->whereDate('paid_at', '<=', $data['until']));
                     }),
             ])
             ->actions([
