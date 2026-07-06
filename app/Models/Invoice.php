@@ -14,11 +14,19 @@ class Invoice extends Model
 {
     use HasFactory;
 
+    protected static bool $skipSequenceValidation = false;
+
+    public static function skipSequenceValidation(bool $skip = true): void
+    {
+        static::$skipSequenceValidation = $skip;
+    }
+
     protected $fillable = [
         'customer_id',
         'order_id',
         'credited_invoice_id',
         'invoice_number',
+        'legacy_invoice_number',
         'document_type',
         'status',
         'total_amount',
@@ -42,6 +50,10 @@ class Invoice extends Model
     protected static function booted(): void
     {
         static::saving(function (Invoice $invoice): void {
+            if (static::$skipSequenceValidation) {
+                return;
+            }
+
             if (blank($invoice->invoice_number)) {
                 return;
             }
