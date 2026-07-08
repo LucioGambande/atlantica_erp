@@ -26,6 +26,7 @@ class AccountStatementPrintService
         ?Carbon $from = null,
         ?Carbon $to = null,
         ?string $entryType = null,
+        bool $excludeSettledInvoices = false,
     ): array {
         $typeFilter = match ($entryType) {
             'invoice', 'payment' => $entryType,
@@ -37,6 +38,7 @@ class AccountStatementPrintService
             $from,
             $to,
             $typeFilter,
+            $excludeSettledInvoices,
         );
 
         return [
@@ -45,7 +47,7 @@ class AccountStatementPrintService
             'summary' => $summary,
             'entries' => $summary['entries'],
             'period_label' => $this->periodLabel($from, $to),
-            'type_label' => $this->typeLabel($entryType),
+            'type_label' => $this->typeLabel($entryType, $excludeSettledInvoices),
             'generated_at' => now(),
         ];
     }
@@ -74,12 +76,18 @@ class AccountStatementPrintService
         return 'Hasta '.$to?->format('d/m/Y');
     }
 
-    protected function typeLabel(?string $entryType): string
+    protected function typeLabel(?string $entryType, bool $excludeSettledInvoices = false): string
     {
-        return match ($entryType) {
+        $base = match ($entryType) {
             'invoice' => 'Solo facturas',
             'payment' => 'Solo pagos',
             default => 'Todos los movimientos',
         };
+
+        if ($excludeSettledInvoices) {
+            return $base.' (sin facturas liquidadas)';
+        }
+
+        return $base;
     }
 }

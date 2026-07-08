@@ -93,6 +93,7 @@ Cliente HubSpot → sync → Customer en Laravel
 - Widget saldo en edición de cliente
 - Botón **Importar movimientos** si hay facturas/pagos pero ledger vacío
 - Rebuild manual: `./vendor/bin/sail artisan ledger:rebuild`
+- Filtro **Ocultar facturas liquidadas**: excluye del listado las facturas cobradas al 100%. También se refleja en la impresión de cuenta corriente (`exclude_settled=1`).
 
 ### Stock
 

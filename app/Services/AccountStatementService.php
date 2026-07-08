@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\LedgerEntry;
 use App\Models\Payment;
 use App\Support\InvoiceLabel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -256,6 +257,7 @@ class AccountStatementService
         ?Carbon $from = null,
         ?Carbon $to = null,
         ?string $typeFilter = null,
+        bool $excludeSettledInvoices = false,
     ): array {
         $query = $customer->ledgerEntries()
             ->with('reference')
@@ -276,7 +278,13 @@ class AccountStatementService
             $query->where('type', LedgerEntry::TYPE_PAYMENT);
         }
 
+        $this->applySettledInvoiceExclusion($query, $excludeSettledInvoices);
+
         $entries = $query->get();
+
+        if ($excludeSettledInvoices) {
+            $entries = $this->recalculateRunningBalancesForEntries($entries);
+        }
 
         $totalInvoiced = round((float) $customer->ledgerEntries()
             ->whereIn('type', [LedgerEntry::TYPE_INVOICE])
@@ -306,7 +314,46 @@ class AccountStatementService
             'total_debit' => round((float) $entries->sum('debit'), 2),
             'total_credit' => round((float) $entries->sum('credit'), 2),
             'final_balance' => round((float) ($entries->last()?->running_balance ?? $customer->balance), 2),
+            'exclude_settled_invoices' => $excludeSettledInvoices,
         ];
+    }
+
+    /**
+     * @param  Builder|\Illuminate\Database\Eloquent\Relations\Relation  $query
+     * @return Builder|\Illuminate\Database\Eloquent\Relations\Relation
+     */
+    public function applySettledInvoiceExclusion($query, bool $exclude)
+    {
+        if (! $exclude) {
+            return $query;
+        }
+
+        $invoiceMorph = (new Invoice)->getMorphClass();
+
+        return $query->whereNot(function (Builder $q) use ($invoiceMorph): void {
+            $q->where('type', LedgerEntry::TYPE_INVOICE)
+                ->where('reference_type', $invoiceMorph)
+                ->whereIn('reference_id', Invoice::query()->settled()->select('id'));
+        });
+    }
+
+    /**
+     * @param  Collection<int, LedgerEntry>  $entries
+     * @return Collection<int, LedgerEntry>
+     */
+    protected function recalculateRunningBalancesForEntries(Collection $entries): Collection
+    {
+        $runningBalance = 0.0;
+
+        return $entries->map(function (LedgerEntry $entry) use (&$runningBalance): LedgerEntry {
+            $runningBalance = round(
+                $runningBalance + (float) $entry->debit - (float) $entry->credit,
+                2,
+            );
+            $entry->setAttribute('running_balance', $runningBalance);
+
+            return $entry;
+        });
     }
 
     public function recalculateRunningBalances(Customer $customer): void

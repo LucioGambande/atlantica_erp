@@ -37,9 +37,14 @@
         </x-filament::section>
     </div>
 
-    <x-filament::section class="mb-6">
+        <x-filament::section class="mb-6">
         <x-slot name="heading">Filtros</x-slot>
         {{ $this->filtersForm }}
+        @if ($this->excludeSettledInvoices)
+            <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                Mostrando solo movimientos con facturas pendientes o parciales. El saldo corrido por fila se oculta en esta vista; usá los totales del período al final.
+            </p>
+        @endif
     </x-filament::section>
 
     {{ $this->table }}

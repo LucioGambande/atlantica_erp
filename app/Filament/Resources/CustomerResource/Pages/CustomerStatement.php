@@ -24,6 +24,8 @@ use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 
@@ -45,6 +47,8 @@ class CustomerStatement extends Page implements HasForms, HasTable
     public ?string $dateTo = null;
 
     public ?string $entryType = 'all';
+
+    public bool $excludeSettledInvoices = false;
 
     public function mount(int|string|Customer $record): void
     {
@@ -133,6 +137,7 @@ class CustomerStatement extends Page implements HasForms, HasTable
                     'from' => $this->dateFrom,
                     'to' => $this->dateTo,
                     'type' => $this->entryType,
+                    'exclude_settled' => $this->excludeSettledInvoices ? '1' : '0',
                     'format' => 'html',
                 ]))
                 ->openUrlInNewTab(),
@@ -182,13 +187,16 @@ class CustomerStatement extends Page implements HasForms, HasTable
             $this->dateFrom ? Carbon::parse($this->dateFrom) : null,
             $this->dateTo ? Carbon::parse($this->dateTo) : null,
             $this->entryType === 'all' ? null : $this->entryType,
+            $this->excludeSettledInvoices,
         );
     }
 
     public function table(Table $table): Table
     {
+        $statementService = app(AccountStatementService::class);
+
         return $table
-            ->query(function () {
+            ->query(function () use ($statementService) {
                 $query = LedgerEntry::query()
                     ->where('customer_id', $this->customerId)
                     ->with('reference');
@@ -209,6 +217,8 @@ class CustomerStatement extends Page implements HasForms, HasTable
                 } elseif ($this->entryType === 'payment') {
                     $query->where('type', LedgerEntry::TYPE_PAYMENT);
                 }
+
+                $statementService->applySettledInvoiceExclusion($query, $this->excludeSettledInvoices);
 
                 return $query->orderBy('date')->orderBy('id');
             })
@@ -232,6 +242,24 @@ class CustomerStatement extends Page implements HasForms, HasTable
                     ->label('Descripción')
                     ->searchable()
                     ->wrap(),
+                Tables\Columns\TextColumn::make('invoice_status')
+                    ->label('Estado factura')
+                    ->badge()
+                    ->state(function (LedgerEntry $record): ?string {
+                        if (! $record->reference instanceof Invoice) {
+                            return null;
+                        }
+
+                        return $record->reference->settlementStatus();
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'Liquidada' => 'success',
+                        'Parcial' => 'warning',
+                        'Pendiente' => 'danger',
+                        default => 'gray',
+                    })
+                    ->placeholder('—')
+                    ->visible(fn (): bool => ! $this->excludeSettledInvoices),
                 Tables\Columns\TextColumn::make('debit')
                     ->label('Débito')
                     ->money('EUR')
@@ -248,7 +276,8 @@ class CustomerStatement extends Page implements HasForms, HasTable
                     ->label('Saldo')
                     ->money('EUR')
                     ->alignEnd()
-                    ->weight('bold'),
+                    ->weight('bold')
+                    ->visible(fn (): bool => ! $this->excludeSettledInvoices),
             ])
             ->actions([
                 Tables\Actions\Action::make('viewReference')
@@ -298,8 +327,13 @@ class CustomerStatement extends Page implements HasForms, HasTable
                     ->default('all')
                     ->live()
                     ->afterStateUpdated(fn () => $this->resetTable()),
+                Forms\Components\Checkbox::make('excludeSettledInvoices')
+                    ->label('Ocultar facturas liquidadas')
+                    ->helperText('Excluye del listado las facturas ya cobradas por completo.')
+                    ->live()
+                    ->afterStateUpdated(fn () => $this->resetTable()),
             ])
-            ->columns(3);
+            ->columns(4);
     }
 
     protected function resolveCustomerId(int|string|Customer|array $record): int

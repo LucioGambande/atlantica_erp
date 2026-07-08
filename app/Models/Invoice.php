@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\InvoiceSequenceValidator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -189,6 +190,47 @@ class Invoice extends Model
     public function isFullyPaid(): bool
     {
         return $this->status === 'paid' || $this->remainingAmount() <= 0;
+    }
+
+    public function settlementStatus(): ?string
+    {
+        if ($this->document_type !== 'invoice') {
+            return null;
+        }
+
+        if ($this->isFullyPaid()) {
+            return 'Liquidada';
+        }
+
+        if ($this->isPartiallyPaid()) {
+            return 'Parcial';
+        }
+
+        return 'Pendiente';
+    }
+
+    public function scopeSettled(Builder $query): Builder
+    {
+        return $query
+            ->where('document_type', 'invoice')
+            ->where(function (Builder $q): void {
+                $q->where('status', 'paid')
+                    ->orWhereRaw(
+                        'total_amount <= COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE payment_allocations.invoice_id = invoices.id), 0)'
+                    );
+            });
+    }
+
+    public function scopeUnsettled(Builder $query): Builder
+    {
+        return $query
+            ->where('document_type', 'invoice')
+            ->where(function (Builder $q): void {
+                $q->where('status', '!=', 'paid')
+                    ->whereRaw(
+                        'total_amount > COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE payment_allocations.invoice_id = invoices.id), 0)'
+                    );
+            });
     }
 
     public function canRegisterPayment(): bool

@@ -26,8 +26,15 @@ class AccountStatementPrintController extends Controller
             ? Carbon::parse((string) $request->query('to'))
             : null;
         $entryType = (string) $request->query('type', 'all');
+        $excludeSettled = $request->boolean('exclude_settled');
 
-        $document = $this->printService->buildPrintData($customer, $from, $to, $entryType);
+        $document = $this->printService->buildPrintData(
+            $customer,
+            $from,
+            $to,
+            $entryType,
+            $excludeSettled,
+        );
         $logoBase64 = $this->printService->logoBase64();
         $format = (string) $request->query('format', 'pdf');
 
