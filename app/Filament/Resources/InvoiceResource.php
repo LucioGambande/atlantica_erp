@@ -13,11 +13,14 @@ use App\Services\InvoicePrintService;
 use App\Services\InvoiceSequenceValidator;
 use App\Services\InvoiceService;
 use App\Services\PaymentService;
+use App\Services\PriceResolutionService;
+use App\Models\Product;
 use App\Support\InvoicePrintAuthorization;
 use RuntimeException;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -252,12 +255,21 @@ class InvoiceResource extends Resource
                     ->label('Estado')
                     ->content('Pagada')
                     ->visible(fn (?Invoice $record): bool => $record?->status === 'paid'),
-                Forms\Components\TextInput::make('total_amount')
+                Forms\Components\Hidden::make('total_amount')
+                    ->default(0),
+                Forms\Components\Placeholder::make('total_preview')
                     ->label('Total')
-                    ->required()
-                    ->numeric()
-                    ->step(0.01)
-                    ->disabled(),
+                    ->content(function (Get $get, ?Invoice $record): string {
+                        $lines = $get('line_items');
+
+                        if (is_array($lines) && $lines !== []) {
+                            $sum = collect($lines)->sum(fn ($row): float => is_array($row) ? (float) ($row['total_price'] ?? 0) : 0);
+
+                            return Number::currency($sum, 'EUR');
+                        }
+
+                        return Number::currency((float) ($record?->total_amount ?? 0), 'EUR');
+                    }),
                 Forms\Components\Checkbox::make('generates_stock_movement')
                     ->label('Genera movimiento de stock')
                     ->default(true)
@@ -270,6 +282,88 @@ class InvoiceResource extends Resource
                     ->label('Stock')
                     ->content('Movimientos de stock registrados')
                     ->visible(fn (?Invoice $record): bool => $record?->stock_movements_recorded ?? false),
+                Forms\Components\Section::make('Líneas de la factura')
+                    ->description('Agregá productos. El total se calcula automáticamente. Después de crear la factura podés editar las líneas desde la ficha.')
+                    ->visibleOn('create')
+                    ->schema([
+                        Forms\Components\Repeater::make('line_items')
+                            ->label('')
+                            ->live()
+                            ->columns(12)
+                            ->minItems(1)
+                            ->defaultItems(1)
+                            ->addActionLabel('Agregar línea')
+                            ->reorderable(false)
+                            ->schema([
+                                Forms\Components\Select::make('product_id')
+                                    ->label('Producto')
+                                    ->options(fn (): array => Product::query()
+                                        ->orderBy('name')
+                                        ->get()
+                                        ->mapWithKeys(fn (Product $product): array => [
+                                            $product->id => $product->name.' · '.$product->sku,
+                                        ])
+                                        ->all())
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->columnSpan(5)
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, Set $set, Get $get): void {
+                                        if (! $state) {
+                                            return;
+                                        }
+
+                                        $product = Product::query()->find($state);
+
+                                        if ($product !== null) {
+                                            $customerId = $get('../../customer_id');
+                                            $set('unit_price', app(PriceResolutionService::class)
+                                                ->resolvePriceForCustomerId($product, $customerId ? (int) $customerId : null));
+                                            $set('description', $product->name);
+                                        }
+
+                                        OrderResource::recalculateLineTotal($set, $get);
+                                    }),
+                                Forms\Components\TextInput::make('quantity')
+                                    ->label('Cant.')
+                                    ->required()
+                                    ->integer()
+                                    ->minValue(1)
+                                    ->default(1)
+                                    ->columnSpan(1)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Set $set, Get $get) => OrderResource::recalculateLineTotal($set, $get)),
+                                Forms\Components\TextInput::make('unit_price')
+                                    ->label('P. unit.')
+                                    ->required()
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->step(0.01)
+                                    ->prefix('€')
+                                    ->columnSpan(2)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Set $set, Get $get) => OrderResource::recalculateLineTotal($set, $get)),
+                                Forms\Components\TextInput::make('discount_percent')
+                                    ->label('Dto. (%)')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->minValue(0)
+                                    ->maxValue(100)
+                                    ->suffix('%')
+                                    ->columnSpan(2)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Set $set, Get $get) => OrderResource::recalculateLineTotal($set, $get)),
+                                Forms\Components\TextInput::make('total_price')
+                                    ->label('Subtotal')
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->prefix('€')
+                                    ->columnSpan(2)
+                                    ->dehydrated()
+                                    ->default(0),
+                            ]),
+                    ]),
             ]);
     }
 

@@ -3,7 +3,7 @@
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
 > La documentación técnica completa está en `PROJECT.md`.
 > **Mantener actualizado** al completar cambios funcionales (ver regla `.cursor/rules/maintain-context-md.mdc`).
-> Última actualización: junio 2026.
+> Última actualización: julio 2026.
 
 ---
 
@@ -71,17 +71,21 @@ Cliente HubSpot → sync → Customer en Laravel
 ### Facturación
 
 - Botón **Facturar pedido** en pedido (`InvoiceService::createFromOrder`)
+- **Crear factura manual** en `Facturas → Crear`: incluye repetidor de **líneas** (producto obligatorio, cantidad, precio, dto.) que calcula `total_amount`; las líneas se crean en `CreateInvoice::afterCreate` y se recalcula el total. Editar líneas posteriores desde el relation manager de la ficha.
 - Numeración correlativa: `{prefix}{año}-{secuencia}` — ej. `HORECA2025-00082` (`InvoiceNumberGenerator`, config en `config/invoices.php`)
 - Validación número/fecha al emitir (`InvoiceSequenceValidator`)
 - `issued_at` y `ordered_at` default `now()` al crear
 - Facturas **no eliminables**; **Cancelar factura** crea nota de crédito (`InvoiceService::cancelInvoice`)
 - Stock en factura: checkbox `generates_stock_movement` (default `true`); al pasar a `issued` aplica `StockService::applyStockFromInvoice`
+- Pestaña **Pagos** de la factura lista `paymentAllocations` (imputaciones), no `payments`: así aparecen también los cobros multi-factura (`invoice_id` nulo)
 
 ### Pagos
 
 - Métodos configurables en **Métodos de pago** (Filament)
-- Registro desde factura emitida → **Registrar pago**
-- Ej.: transferencia bancaria exige `transaction_number`
+- Registro desde factura emitida → **Registrar pago** (admite **pago parcial**)
+- Cobro multi-factura desde cuenta corriente → **Registrar cobro** con imputaciones (`payment_allocations`)
+- Transferencia bancaria: `transaction_number` es **opcional** (columna nullable)
+- Selector de facturas a imputar muestra **número · fecha — pendiente** (`InvoiceLabel`)
 
 ### Cuenta corriente
 
