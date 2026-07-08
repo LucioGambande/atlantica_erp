@@ -50,29 +50,40 @@ class ProductResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('sku')
-                    ->label('SKU')
-                    ->required()
-                    ->maxLength(255)
-                    ->unique(column: 'sku', ignoreRecord: true),
-                Forms\Components\TextInput::make('purchase_price')
-                    ->required()
-                    ->numeric()
-                    ->minValue(0)
-                    ->step(0.01),
-                Forms\Components\TextInput::make('sale_price')
-                    ->required()
-                    ->numeric()
-                    ->minValue(0)
-                    ->step(0.01),
-                Forms\Components\TextInput::make('stock')
-                    ->required()
-                    ->integer()
-                    ->minValue(0)
-                    ->default(0),
+                Forms\Components\Section::make('Datos generales')
+                    ->columns(2)
+                    ->schema([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('sku')
+                            ->label('SKU')
+                            ->required()
+                            ->maxLength(255)
+                            ->unique(column: 'sku', ignoreRecord: true),
+                    ]),
+                Forms\Components\Section::make('Precios')
+                    ->columns(2)
+                    ->schema([
+                        Forms\Components\TextInput::make('purchase_price')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0)
+                            ->step(0.01),
+                        Forms\Components\TextInput::make('sale_price')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0)
+                            ->step(0.01),
+                    ]),
+                Forms\Components\Section::make('Inventario')
+                    ->schema([
+                        Forms\Components\TextInput::make('stock')
+                            ->required()
+                            ->integer()
+                            ->minValue(0)
+                            ->default(0),
+                    ]),
             ]);
     }
 
@@ -99,6 +110,12 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('stock')
                     ->numeric()
                     ->sortable()
+                    ->badge()
+                    ->color(fn (int $state): string => match (true) {
+                        $state <= 0 => 'danger',
+                        $state <= 5 => 'warning',
+                        default => 'success',
+                    })
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

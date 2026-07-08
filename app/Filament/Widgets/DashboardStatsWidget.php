@@ -14,11 +14,17 @@ use App\Support\InvoicePrintAuthorization;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Number;
 
 class DashboardStatsWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
+
+    /**
+     * TTL de caché para las métricas agregadas del dashboard (segundos).
+     */
+    protected const STATS_CACHE_TTL = 300;
 
     protected function getStats(): array
     {
@@ -26,21 +32,31 @@ class DashboardStatsWidget extends BaseWidget
         $monthEnd = Carbon::now()->endOfMonth();
         $monthLabel = Carbon::now()->translatedFormat('F Y');
 
-        $collectedThisMonth = (float) Payment::query()
-            ->whereBetween('paid_at', [$monthStart, $monthEnd])
-            ->sum('amount');
+        $metrics = Cache::remember(
+            'dashboard_stats:'.$monthStart->format('Y-m'),
+            self::STATS_CACHE_TTL,
+            static function () use ($monthStart, $monthEnd): array {
+                return [
+                    'collected' => (float) Payment::query()
+                        ->whereBetween('paid_at', [$monthStart, $monthEnd])
+                        ->sum('amount'),
+                    'invoiced' => (float) Invoice::query()
+                        ->whereIn('status', ['issued', 'paid'])
+                        ->whereBetween('issued_at', [$monthStart, $monthEnd])
+                        ->sum('total_amount'),
+                    'customersWithDebt' => Customer::query()->withDebt()->count(),
+                    'customersOverCreditLimit' => Customer::query()
+                        ->where('credit_limit', '>', 0)
+                        ->whereColumn('balance', '>', 'credit_limit')
+                        ->count(),
+                ];
+            }
+        );
 
-        $invoicedThisMonth = (float) Invoice::query()
-            ->whereIn('status', ['issued', 'paid'])
-            ->whereBetween('issued_at', [$monthStart, $monthEnd])
-            ->sum('total_amount');
-
-        $customersWithDebt = Customer::query()->withDebt()->count();
-
-        $customersOverCreditLimit = Customer::query()
-            ->where('credit_limit', '>', 0)
-            ->whereColumn('balance', '>', 'credit_limit')
-            ->count();
+        $collectedThisMonth = $metrics['collected'];
+        $invoicedThisMonth = $metrics['invoiced'];
+        $customersWithDebt = $metrics['customersWithDebt'];
+        $customersOverCreditLimit = $metrics['customersOverCreditLimit'];
 
         return [
             Stat::make('Cobrado este mes', Number::currency($collectedThisMonth, 'EUR'))
