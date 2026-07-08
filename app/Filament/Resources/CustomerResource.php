@@ -45,7 +45,8 @@ class CustomerResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->withoutGlobalScopes([SoftDeletingScope::class]);
+            ->withoutGlobalScopes([SoftDeletingScope::class])
+            ->with('priceList');
     }
 
     public static function form(Form $form): Form

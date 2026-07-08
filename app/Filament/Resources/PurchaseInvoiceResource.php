@@ -41,6 +41,12 @@ class PurchaseInvoiceResource extends Resource
         return ['document_number'];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with('supplier');
+    }
+
     public static function form(Form $form): Form
     {
         return $form

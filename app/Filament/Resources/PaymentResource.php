@@ -16,6 +16,7 @@ use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PaymentResource extends Resource
 {
@@ -41,6 +42,13 @@ class PaymentResource extends Resource
     public static function getGloballySearchableAttributes(): array
     {
         return [];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['customer', 'paymentMethod', 'detail', 'allocations.invoice'])
+            ->withSum('allocations as allocations_sum_amount', 'amount');
     }
 
     public static function form(Form $form): Form

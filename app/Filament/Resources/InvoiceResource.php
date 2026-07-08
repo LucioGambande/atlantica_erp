@@ -172,6 +172,13 @@ class InvoiceResource extends Resource
         return false;
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['customer', 'order'])
+            ->withSum('paymentAllocations as payment_allocations_sum_amount', 'amount');
+    }
+
     public static function form(Form $form): Form
     {
         return $form

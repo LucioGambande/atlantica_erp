@@ -51,6 +51,12 @@ class OrderResource extends Resource
         return ['id'];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['customer', 'invoice']);
+    }
+
     public static function getGlobalSearchResultDetails(Model $record): array
     {
         /** @var Order $record */

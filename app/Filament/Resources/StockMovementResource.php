@@ -40,6 +40,12 @@ class StockMovementResource extends Resource
         return ['reference_type'];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with('product');
+    }
+
     public static function form(Form $form): Form
     {
         return $form

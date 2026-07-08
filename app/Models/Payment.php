@@ -38,6 +38,10 @@ class Payment extends Model
 
     public function allocatedAmount(): float
     {
+        if (array_key_exists('allocations_sum_amount', $this->attributes)) {
+            return round((float) $this->attributes['allocations_sum_amount'], 2);
+        }
+
         return round((float) $this->allocations()->sum('amount'), 2);
     }
 

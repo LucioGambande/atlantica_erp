@@ -144,6 +144,10 @@ class Invoice extends Model
 
     public function paidAmount(): float
     {
+        if (array_key_exists('payment_allocations_sum_amount', $this->attributes)) {
+            return round((float) $this->attributes['payment_allocations_sum_amount'], 2);
+        }
+
         return round((float) $this->paymentAllocations()->sum('amount'), 2);
     }
 
