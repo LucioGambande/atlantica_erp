@@ -12,7 +12,7 @@ use App\Support\ErpAuthorization;
 use App\Support\InvoiceLabel;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -61,16 +61,11 @@ class PaymentResource extends Resource
                     ->required()
                     ->searchable()
                     ->preload()
-                    ->live(),
-                Forms\Components\TextInput::make('amount')
-                    ->label('Importe del cobro')
-                    ->required()
-                    ->numeric()
-                    ->minValue(0.01)
-                    ->step(0.01)
-                    ->live(onBlur: true),
-                PaymentAllocationForm::allocatedSummaryPlaceholder(),
-                PaymentAllocationForm::allocationsRepeater(),
+                    ->live()
+                    ->afterStateUpdated(function (Set $set): void {
+                        PaymentAllocationForm::resetAllocationFields($set);
+                    }),
+                ...PaymentAllocationForm::allocationFields(),
                 PaymentDetailForm::methodSelect(),
                 PaymentDetailForm::detailsSection(),
                 Forms\Components\DateTimePicker::make('paid_at')

@@ -84,6 +84,7 @@ Cliente HubSpot → sync → Customer en Laravel
 - Métodos configurables en **Métodos de pago** (Filament)
 - Registro desde factura emitida → **Registrar pago** (admite **pago parcial**)
 - Cobro multi-factura desde cuenta corriente → **Registrar cobro** con imputaciones (`payment_allocations`)
+- Selector **Facturas a liquidar** (multi-select): al elegir una o más facturas pendientes, completa automáticamente importe del cobro e imputaciones al 100% del saldo de cada una (`PaymentAllocationForm`)
 - Transferencia bancaria: `transaction_number` es **opcional** (columna nullable)
 - Selector de facturas a imputar muestra **número · fecha — pendiente** (`InvoiceLabel`)
 

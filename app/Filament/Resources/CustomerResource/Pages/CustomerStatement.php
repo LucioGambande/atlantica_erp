@@ -80,15 +80,7 @@ class CustomerStatement extends Page implements HasForms, HasTable
                 ->color('success')
                 ->visible(fn (): bool => ErpAuthorization::userCan('manage invoices'))
                 ->form([
-                    Forms\Components\TextInput::make('amount')
-                        ->label('Importe del cobro')
-                        ->required()
-                        ->numeric()
-                        ->minValue(0.01)
-                        ->step(0.01)
-                        ->live(onBlur: true),
-                    PaymentAllocationForm::allocatedSummaryPlaceholder(),
-                    PaymentAllocationForm::allocationsRepeater($this->customerId),
+                    ...PaymentAllocationForm::allocationFields($this->customerId),
                     PaymentDetailForm::methodSelect(),
                     PaymentDetailForm::detailsSection(),
                     Forms\Components\DateTimePicker::make('paid_at')

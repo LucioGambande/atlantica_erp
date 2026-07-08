@@ -35,6 +35,13 @@ class EditPayment extends EditRecord
             ->values()
             ->all();
 
+        $data['quick_invoice_ids'] = collect($data['allocations'])
+            ->pluck('invoice_id')
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+
         return $data;
     }
 
