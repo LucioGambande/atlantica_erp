@@ -4,6 +4,7 @@ namespace App\Filament\Forms;
 
 use App\Models\Invoice;
 use App\Services\PaymentService;
+use App\Support\InvoiceLabel;
 use Filament\Forms;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
@@ -84,10 +85,7 @@ class PaymentAllocationForm
         return app(PaymentService::class)
             ->pendingInvoicesForCustomer($customerId)
             ->mapWithKeys(function (Invoice $invoice): array {
-                $label = $invoice->invoice_number
-                    .' — pendiente '.Number::currency($invoice->remainingAmount(), 'EUR');
-
-                return [$invoice->id => $label];
+                return [$invoice->id => InvoiceLabel::withPendingAmount($invoice)];
             })
             ->all();
     }

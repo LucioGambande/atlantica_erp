@@ -9,6 +9,7 @@ use App\Filament\Resources\PaymentResource\Pages;
 use App\Models\Payment;
 use App\Services\PaymentDetailService;
 use App\Support\ErpAuthorization;
+use App\Support\InvoiceLabel;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -93,8 +94,15 @@ class PaymentResource extends Resource
                         }
 
                         return $record->allocations
-                            ->map(fn ($allocation): string => ($allocation->invoice?->invoice_number ?? 'Factura')
-                                .': '.number_format((float) $allocation->amount, 2, ',', '.').' €')
+                            ->map(function ($allocation): string {
+                                $invoice = $allocation->invoice;
+
+                                if ($invoice === null) {
+                                    return 'Factura: '.number_format((float) $allocation->amount, 2, ',', '.').' €';
+                                }
+
+                                return InvoiceLabel::withAllocatedAmount($invoice, (float) $allocation->amount);
+                            })
                             ->implode(' · ');
                     })
                     ->wrap()

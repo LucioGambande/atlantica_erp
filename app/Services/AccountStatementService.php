@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
 use App\Models\Payment;
+use App\Support\InvoiceLabel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -413,11 +414,9 @@ class AccountStatementService
 
     protected function invoiceDescription(Invoice $invoice): string
     {
-        if ($invoice->isCreditNote()) {
-            return 'Nota de crédito '.$invoice->invoice_number;
-        }
+        $prefix = $invoice->isCreditNote() ? 'Nota de crédito' : 'Factura';
 
-        return 'Factura '.$invoice->invoice_number;
+        return $prefix.' '.InvoiceLabel::numberAndDate($invoice);
     }
 
     protected function paymentDescription(Payment $payment): string
@@ -427,9 +426,13 @@ class AccountStatementService
         if ($payment->allocations->isNotEmpty()) {
             $parts = $payment->allocations
                 ->map(function ($allocation): string {
-                    $invoiceNumber = $allocation->invoice?->invoice_number ?? 'Factura';
+                    $invoice = $allocation->invoice;
 
-                    return $invoiceNumber.': '.number_format((float) $allocation->amount, 2, ',', '.').' €';
+                    if ($invoice === null) {
+                        return 'Factura: '.number_format((float) $allocation->amount, 2, ',', '.').' €';
+                    }
+
+                    return InvoiceLabel::withAllocatedAmount($invoice, (float) $allocation->amount);
                 })
                 ->all();
 
@@ -439,10 +442,10 @@ class AccountStatementService
         }
 
         $method = $payment->paymentMethod?->name ?? 'Pago';
-        $invoiceRef = $payment->invoice?->invoice_number;
+        $invoice = $payment->invoice;
 
-        if ($invoiceRef !== null) {
-            return $method.' — Factura '.$invoiceRef;
+        if ($invoice !== null) {
+            return $method.' — Factura '.InvoiceLabel::numberAndDate($invoice);
         }
 
         return $method.' #'.$payment->id;

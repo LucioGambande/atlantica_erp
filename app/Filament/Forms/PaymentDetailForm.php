@@ -28,7 +28,6 @@ class PaymentDetailForm
             PaymentDetailType::BANK_TRANSFER => [
                 Forms\Components\TextInput::make('detail.transaction_number')
                     ->label('Número de transacción')
-                    ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('detail.bank_reference')
                     ->label('Referencia bancaria')

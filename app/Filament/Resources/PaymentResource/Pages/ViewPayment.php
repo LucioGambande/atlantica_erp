@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PaymentResource\Pages;
 
 use App\Filament\Resources\PaymentResource;
 use App\Services\PaymentDetailService;
+use App\Support\InvoiceLabel;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
@@ -51,8 +52,11 @@ class ViewPayment extends ViewRecord
                         Infolists\Components\RepeatableEntry::make('allocations')
                             ->label('')
                             ->schema([
-                                Infolists\Components\TextEntry::make('invoice.invoice_number')
-                                    ->label('Factura'),
+                                Infolists\Components\TextEntry::make('invoice_label')
+                                    ->label('Factura')
+                                    ->state(fn ($record): string => $record->invoice !== null
+                                        ? InvoiceLabel::numberAndDate($record->invoice)
+                                        : '—'),
                                 Infolists\Components\TextEntry::make('amount')
                                     ->label('Importe')
                                     ->money('EUR'),
