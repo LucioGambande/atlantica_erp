@@ -492,6 +492,7 @@ class InvoiceResource extends Resource
                             ->when($data['until'] ?? null, fn (Builder $q) => $q->whereDate('created_at', '<=', $data['until']));
                     }),
             ])
+            ->defaultSort('id', 'desc')
             ->actions([
                 static::printAction(),
                 Tables\Actions\ViewAction::make()
