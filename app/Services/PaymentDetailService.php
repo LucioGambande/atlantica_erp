@@ -23,7 +23,7 @@ class PaymentDetailService
     {
         return match ($method->detail_type) {
             PaymentDetailType::BANK_TRANSFER => BankTransferPaymentDetail::create([
-                'transaction_number' => $this->requiredString($data, 'transaction_number', 'El número de transacción es obligatorio.'),
+                'transaction_number' => $this->optionalString($data, 'transaction_number'),
                 'bank_reference' => $data['bank_reference'] ?? null,
             ]),
             PaymentDetailType::CARD => CardPaymentDetail::create([
@@ -78,7 +78,7 @@ class PaymentDetailService
 
         match ($method->detail_type) {
             PaymentDetailType::BANK_TRANSFER => $detail->update([
-                'transaction_number' => $this->requiredString($data, 'transaction_number', 'El número de transacción es obligatorio.'),
+                'transaction_number' => $this->optionalString($data, 'transaction_number'),
                 'bank_reference' => $data['bank_reference'] ?? null,
             ]),
             PaymentDetailType::CARD => $detail->update([
@@ -136,5 +136,15 @@ class PaymentDetailService
         }
 
         return $value;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function optionalString(array $data, string $key): ?string
+    {
+        $value = trim((string) ($data[$key] ?? ''));
+
+        return $value === '' ? null : $value;
     }
 }
