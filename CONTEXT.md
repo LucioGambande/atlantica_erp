@@ -180,9 +180,17 @@ $user->assignRole('accountant');
 
 ### Dashboard (`/admin`)
 
-- **DashboardStatsWidget:** cobrado/facturado del mes, clientes con deuda (`withDebt`), sobre límite de crédito.
+- **DashboardStatsWidget:** cobrado/facturado del mes, clientes con deuda (`withDebt`), sobre límite de crédito. Las 4 métricas agregadas se cachean 300s con clave `dashboard_stats:YYYY-MM` (se refrescan solas o al vaciar caché).
 - **PendingInvoicesWidget:** facturas `issued` ordenadas por antigüedad (sin `due_date`).
 - **LowStockWidget:** productos con stock ≤ `StockReportService::LOW_STOCK_THRESHOLD` (10).
+
+### Rendimiento (optimizaciones aplicadas jul-2026)
+
+- **Eager loading en tablas Filament** (evita N+1): `getEloquentQuery()` con `->with(...)` en Invoice, Payment, Order, Customer, StockMovement, PurchaseInvoice, Product.
+- **Agregados pre-cargados:** `InvoiceResource`/`PaymentResource` usan `withSum(...)`. `Invoice::paidAmount()` y `Payment::allocatedAmount()` leen el atributo pre-cargado (`payment_allocations_sum_amount` / `allocations_sum_amount`) si existe, con fallback a query en vivo (misma exactitud en flujos de escritura).
+- **Índices** (migración aditiva `add_performance_indexes`, no altera datos): `invoices(status, issued_at, document_type)`, `payments(paid_at)`, `customers(tax_id, balance)`.
+- **Octane:** NO instalado. Cambia el modelo de ejecución (estado entre requests) y requiere configurar workers en Laravel Cloud + validación en staging; pendiente de hacer aparte.
+- **Orden por defecto:** Facturas, Pedidos y Pagos listan de más reciente a más antiguo (`defaultSort('id','desc')`).
 
 ### Importación legacy
 
