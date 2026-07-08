@@ -133,6 +133,7 @@ class PaymentResource extends Resource
                     ->sortable()
                     ->toggleable(),
             ])
+            ->defaultSort('id', 'desc')
             ->filters([
                 Tables\Filters\Filter::make('paid_at')
                     ->form([
