@@ -112,7 +112,6 @@ class InvoicePrintService
                 abs((int) $item->quantity),
                 abs((float) $item->discount_percent),
             );
-            $totalWithVat = round($baseTotal * (1 + $vatRate), 4);
 
             return [
                 'description' => $item->description ?: ($item->product?->name ?? 'Línea'),
@@ -120,12 +119,14 @@ class InvoicePrintService
                 'unit_price' => round(abs((float) $item->unit_price), 2),
                 'vat_rate' => $vatRate,
                 'discount_percent' => round(abs((float) $item->discount_percent), 2),
-                'line_total' => round($sign * $totalWithVat, 2),
+                'line_total' => round($sign * $baseTotal, 2),
             ];
         });
 
-        $subtotal = round($lines->sum(fn (array $line): float => $line['line_total'] / (1 + $vatRate)), 2);
-        $total = round($lines->sum(fn (array $line): float => $line['line_total']), 2);
+        // Base imponible (neto), IVA nominal y total con impuestos.
+        $subtotal = round($lines->sum(fn (array $line): float => $line['line_total']), 2);
+        $vatAmount = round($subtotal * $vatRate, 2);
+        $total = round($subtotal + $vatAmount, 2);
 
         return [
             'invoice' => $invoice,
@@ -144,6 +145,7 @@ class InvoicePrintService
             ],
             'lines' => $lines,
             'subtotal' => $subtotal,
+            'vat_amount' => $vatAmount,
             'total' => $total,
             'vat_rate' => $vatRate,
             'iban' => $issuer['iban'] ?? null,

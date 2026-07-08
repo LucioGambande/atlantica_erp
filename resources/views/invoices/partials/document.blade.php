@@ -92,14 +92,25 @@
         </tbody>
     </table>
 
-    <table class="total-table" cellspacing="0" cellpadding="0">
+    <table class="totals-table" cellspacing="0" cellpadding="0">
         <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td class="total-label">TOTAL</td>
-            <td class="total-value">{{ $formatMoney($document['total']) }}</td>
+            <td class="totals-spacer"></td>
+            <td class="totals-box">
+                <table width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td class="totals-label">Base imponible</td>
+                        <td class="totals-amount">{{ $formatMoney($document['subtotal']) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="totals-label">IVA ({{ number_format($document['vat_rate'] * 100, 0) }}%)</td>
+                        <td class="totals-amount">{{ $formatMoney($document['vat_amount']) }}</td>
+                    </tr>
+                    <tr class="totals-grand">
+                        <td class="totals-label">TOTAL</td>
+                        <td class="totals-amount">{{ $formatMoney($document['total']) }}</td>
+                    </tr>
+                </table>
+            </td>
         </tr>
     </table>
 

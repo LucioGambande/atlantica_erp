@@ -101,7 +101,10 @@ Cliente HubSpot → sync → Customer en Laravel
 
 ### Impresión de facturas
 
-- Formato basado en Excel real (HORECA2025-0082): logo arriba a la derecha, emisor/cliente en dos columnas, líneas con IVA 21%, total alineado bajo columna Precio, vencimiento +21 días, IBAN
+- Formato tipo factura estándar: logo arriba a la derecha, emisor/cliente en dos columnas, vencimiento +21 días, IBAN
+- **Líneas en neto (sin IVA):** la columna "Precio" muestra el importe de línea sin impuestos; se mantiene la columna informativa de tipo de IVA (21%)
+- **Desglose fiscal** abajo a la derecha (entre tabla y total): `Base imponible` (suma neta) → `IVA (21%)` (importe nominal) → `TOTAL` (con IVA). El total impreso equivale a `invoices.total_amount` (que ya se almacena en bruto, con IVA)
+- Cálculo en `InvoicePrintService::buildPrintData()`: `subtotal` = suma de líneas netas, `vat_amount` = subtotal × tasa, `total` = subtotal + IVA
 - **PDF por defecto** vía `barryvdh/laravel-dompdf` (`?format=html` para vista previa en navegador)
 - Config emisor/IVA/plazo/logo: `config/invoices.php` y variables `INVOICE_ISSUER_*`, `INVOICE_LOGO_PATH`
 - Página rango: `/admin/print-invoices` (Filament `PrintInvoices`)

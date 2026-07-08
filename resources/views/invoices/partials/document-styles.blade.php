@@ -22,7 +22,7 @@
     .meta-table,
     .parties-table,
     .items-table,
-    .total-table {
+    .totals-table {
         width: 100%;
         border-collapse: collapse;
     }
@@ -60,23 +60,35 @@
         text-align: right;
         white-space: nowrap;
     }
-    .total-table {
-        margin-top: 10px;
-        width: 100%;
+    .totals-table {
+        margin-top: 12px;
     }
-    .total-table td {
-        padding: 4px 5px;
+    .totals-spacer {
+        width: 58%;
     }
-    .total-label {
-        text-align: right;
-        font-weight: 700;
-        padding-right: 8px;
+    .totals-box {
+        width: 42%;
+        vertical-align: top;
     }
-    .total-value {
-        width: 16%;
-        text-align: right;
-        font-weight: 700;
+    .totals-box table td {
         border: 1px solid #222;
+    }
+    .totals-label {
+        text-align: left;
+        padding: 5px 8px;
+        font-weight: 700;
+        background: #f5f5f5;
+    }
+    .totals-amount {
+        text-align: right;
+        padding: 5px 8px;
+        white-space: nowrap;
+    }
+    .totals-grand .totals-label,
+    .totals-grand .totals-amount {
+        font-size: 12px;
+        font-weight: 700;
+        background: #eaeaea;
     }
     .footer {
         margin-top: 24px;
