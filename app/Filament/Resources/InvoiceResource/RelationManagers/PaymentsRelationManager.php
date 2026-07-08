@@ -13,7 +13,7 @@ class PaymentsRelationManager extends RelationManager
 {
     protected static ?string $title = 'Pagos';
 
-    protected static string $relationship = 'payments';
+    protected static string $relationship = 'paymentAllocations';
 
     public function form(Form $form): Form
     {
@@ -26,21 +26,25 @@ class PaymentsRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->columns([
                 Tables\Columns\TextColumn::make('amount')
-                    ->label('Importe')
+                    ->label('Imputado a esta factura')
                     ->money('EUR')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('paymentMethod.name')
+                Tables\Columns\TextColumn::make('payment.amount')
+                    ->label('Importe del cobro')
+                    ->money('EUR')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('payment.paymentMethod.name')
                     ->label('Forma de pago')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('detail_summary')
                     ->label('Detalle')
-                    ->state(fn ($record): string => app(PaymentDetailService::class)->summary($record->detail)),
-                Tables\Columns\TextColumn::make('paid_at')
+                    ->state(fn ($record): string => app(PaymentDetailService::class)->summary($record->payment?->detail)),
+                Tables\Columns\TextColumn::make('payment.paid_at')
                     ->label('Fecha de pago')
                     ->dateTime()
                     ->sortable(),
             ])
-            ->defaultSort('paid_at', 'desc')
+            ->defaultSort('id', 'desc')
             ->headerActions([])
             ->actions([])
             ->bulkActions([]);
