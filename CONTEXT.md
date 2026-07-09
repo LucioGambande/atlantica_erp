@@ -71,7 +71,7 @@ Cliente HubSpot → sync → Customer en Laravel
 ### Facturación
 
 - Botón **Facturar pedido** en pedido (`InvoiceService::createFromOrder`)
-- Si falla la facturación desde pedido (por ejemplo, stock insuficiente u otro error de dominio), el panel muestra notificación de error y evita 500 en UI (`OrderResource::invoiceOrder` captura excepciones no controladas y reporta)
+- Si falla la facturación desde pedido (por ejemplo, stock insuficiente), el panel muestra el motivo exacto y evita 500. Para facturar sin descontar inventario, desmarcar **Genera movimiento de stock** en la acción de facturar pedido.
 - **Crear factura manual** en `Facturas → Crear`: incluye repetidor de **líneas** (producto obligatorio, cantidad, precio, dto.) que calcula `total_amount`; las líneas se crean en `CreateInvoice::afterCreate` y se recalcula el total. Editar líneas posteriores desde el relation manager de la ficha.
 - Numeración correlativa: `{prefix}{año}-{secuencia}` — ej. `HORECA2025-00082` (`InvoiceNumberGenerator`, config en `config/invoices.php`)
 - Validación número/fecha al emitir (`InvoiceSequenceValidator`)
@@ -101,6 +101,8 @@ Cliente HubSpot → sync → Customer en Laravel
 
 - Reporte `/admin/stock-report` (`StockReport` page)
 - Sanitizar movimientos alineados solo a facturas: `./vendor/bin/sail artisan stock:sanitize`
+- Se permite stock negativo al facturar con movimiento de stock: si no hay unidades suficientes, la factura igual descuenta y el producto puede quedar con saldo `< 0`.
+- Recalculo desde movimientos (`StockService::recalculateProductStockFromMovements`) conserva saldos negativos (no los clampa a 0).
 
 ### Impresión de facturas
 

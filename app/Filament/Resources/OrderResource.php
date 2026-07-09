@@ -20,6 +20,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use DomainException;
 use Throwable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -75,6 +76,7 @@ class OrderResource extends Resource
         return [
             Forms\Components\Checkbox::make('generates_stock_movement')
                 ->label('Genera movimiento de stock')
+                ->helperText('Al facturar, el stock se descuenta automáticamente (puede quedar en negativo).')
                 ->default(true),
         ];
     }
@@ -95,6 +97,14 @@ class OrderResource extends Resource
 
             return $invoice;
         } catch (RuntimeException $exception) {
+            Notification::make()
+                ->title('No se pudo facturar el pedido')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return null;
+        } catch (DomainException $exception) {
             Notification::make()
                 ->title('No se pudo facturar el pedido')
                 ->body($exception->getMessage())

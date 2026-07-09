@@ -60,7 +60,8 @@ class StockService
                 throw new DomainException('El stock ya fue registrado para esta factura.');
             }
 
-            $this->recordMovementsForInvoice($invoice, enforceStockAvailability: true);
+            // Permitimos facturar con movimiento de stock aunque el saldo quede negativo.
+            $this->recordMovementsForInvoice($invoice, enforceStockAvailability: false);
 
             $invoice->update(['stock_movements_recorded' => true]);
         });
@@ -143,7 +144,7 @@ class StockService
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as balance")
             ->value('balance');
 
-        $product->update(['stock' => max(0, $balance)]);
+        $product->update(['stock' => $balance]);
     }
 
     protected function reduceProductStock(
