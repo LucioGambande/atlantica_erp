@@ -71,6 +71,7 @@ Cliente HubSpot → sync → Customer en Laravel
 ### Facturación
 
 - Botón **Facturar pedido** en pedido (`InvoiceService::createFromOrder`)
+- Si falla la facturación desde pedido (por ejemplo, stock insuficiente u otro error de dominio), el panel muestra notificación de error y evita 500 en UI (`OrderResource::invoiceOrder` captura excepciones no controladas y reporta)
 - **Crear factura manual** en `Facturas → Crear`: incluye repetidor de **líneas** (producto obligatorio, cantidad, precio, dto.) que calcula `total_amount`; las líneas se crean en `CreateInvoice::afterCreate` y se recalcula el total. Editar líneas posteriores desde el relation manager de la ficha.
 - Numeración correlativa: `{prefix}{año}-{secuencia}` — ej. `HORECA2025-00082` (`InvoiceNumberGenerator`, config en `config/invoices.php`)
 - Validación número/fecha al emitir (`InvoiceSequenceValidator`)

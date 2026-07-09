@@ -20,6 +20,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Throwable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Number;
@@ -97,6 +98,16 @@ class OrderResource extends Resource
             Notification::make()
                 ->title('No se pudo facturar el pedido')
                 ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return null;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            Notification::make()
+                ->title('No se pudo facturar el pedido')
+                ->body('Ocurrió un error inesperado al generar la factura. Revisá stock o configuración del pedido.')
                 ->danger()
                 ->send();
 
