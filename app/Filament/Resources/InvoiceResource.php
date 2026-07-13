@@ -378,11 +378,13 @@ class InvoiceResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('invoice_number')
-                    ->label('Número')
-                    ->searchable(isIndividual: true, isGlobal: false)
-                    ->sortable()
-                    ->toggleable(),
+                TableUi::invoiceLink(
+                    Tables\Columns\TextColumn::make('invoice_number')
+                        ->label('Número')
+                        ->searchable(isIndividual: true, isGlobal: false)
+                        ->sortable()
+                        ->toggleable(),
+                ),
                 Tables\Columns\TextColumn::make('document_type')
                     ->label('Tipo')
                     ->badge()
@@ -400,11 +402,13 @@ class InvoiceResource extends Resource
                         'credit_note' => 'danger',
                         default => 'primary',
                     }),
-                Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Cliente')
-                    ->searchable(isIndividual: true, isGlobal: false)
-                    ->sortable()
-                    ->toggleable(),
+                TableUi::customerLink(
+                    Tables\Columns\TextColumn::make('customer.name')
+                        ->label('Cliente')
+                        ->searchable(isIndividual: true, isGlobal: false)
+                        ->sortable()
+                        ->toggleable(),
+                ),
                 Tables\Columns\TextColumn::make('order.id')
                     ->label('Pedido')
                     ->placeholder('—')

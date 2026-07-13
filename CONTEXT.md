@@ -87,7 +87,8 @@ Cliente HubSpot → sync → Customer en Laravel
 - Cobro multi-factura desde cuenta corriente → **Registrar cobro** con imputaciones (`payment_allocations`)
 - Selector **Facturas a liquidar** (multi-select): al elegir una o más facturas pendientes, completa automáticamente importe del cobro e imputaciones al 100% del saldo de cada una (`PaymentAllocationForm`)
 - Transferencia bancaria: `transaction_number` es **opcional** (columna nullable)
-- Selector de facturas a imputar muestra **número · fecha — pendiente** (`InvoiceLabel`)
+- Selector de facturas a imputar (dropdown de pagos) muestra **número · fecha — pendiente** (`InvoiceLabel::withPendingAmount`); en listados y cuenta corriente se muestra solo el número de factura
+- En tablas Filament, **número de factura** y **nombre de cliente** son enlaces clicables a la ficha (`TableUi::invoiceLink`, `TableUi::customerLink`)
 
 ### Cuenta corriente
 

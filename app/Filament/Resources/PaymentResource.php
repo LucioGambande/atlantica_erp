@@ -9,7 +9,6 @@ use App\Filament\Resources\PaymentResource\Pages;
 use App\Models\Payment;
 use App\Services\PaymentDetailService;
 use App\Support\ErpAuthorization;
-use App\Support\InvoiceLabel;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Set;
@@ -82,11 +81,13 @@ class PaymentResource extends Resource
                 Tables\Columns\TextColumn::make('id')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Cliente')
-                    ->searchable()
-                    ->sortable()
-                    ->toggleable(),
+                TableUi::customerLink(
+                    Tables\Columns\TextColumn::make('customer.name')
+                        ->label('Cliente')
+                        ->searchable()
+                        ->sortable()
+                        ->toggleable(),
+                ),
                 Tables\Columns\TextColumn::make('allocations_summary')
                     ->label('Imputado a')
                     ->state(function (Payment $record): string {
@@ -104,7 +105,7 @@ class PaymentResource extends Resource
                                     return 'Factura: '.number_format((float) $allocation->amount, 2, ',', '.').' €';
                                 }
 
-                                return InvoiceLabel::withAllocatedAmount($invoice, (float) $allocation->amount);
+                                return $invoice->invoice_number.': '.number_format((float) $allocation->amount, 2, ',', '.').' €';
                             })
                             ->implode(' · ');
                     })

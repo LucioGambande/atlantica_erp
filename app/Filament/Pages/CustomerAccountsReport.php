@@ -45,11 +45,13 @@ class CustomerAccountsReport extends Page implements HasTable
                     ->orderByDesc('balance')
             )
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Cliente')
-                    ->searchable(isIndividual: true, isGlobal: false)
-                    ->sortable()
-                    ->toggleable(),
+                TableUi::customerLink(
+                    Tables\Columns\TextColumn::make('name')
+                        ->label('Cliente')
+                        ->searchable(isIndividual: true, isGlobal: false)
+                        ->sortable()
+                        ->toggleable(),
+                ),
                 Tables\Columns\TextColumn::make('balance')
                     ->label('Saldo')
                     ->money('EUR')

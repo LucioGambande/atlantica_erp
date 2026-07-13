@@ -2,7 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Resources\InvoiceResource;
+use App\Filament\Support\TableUi;
 use App\Models\Invoice;
 use App\Support\InvoicePrintAuthorization;
 use Filament\Tables;
@@ -31,15 +31,18 @@ class PendingInvoicesWidget extends BaseWidget
                     ->orderBy('issued_at')
             )
             ->columns([
-                Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Cliente')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('invoice_number')
-                    ->label('Número')
-                    ->searchable()
-                    ->sortable()
-                    ->url(fn (Invoice $record): string => InvoiceResource::getUrl('edit', ['record' => $record])),
+                TableUi::customerLink(
+                    Tables\Columns\TextColumn::make('customer.name')
+                        ->label('Cliente')
+                        ->searchable()
+                        ->sortable(),
+                ),
+                TableUi::invoiceLink(
+                    Tables\Columns\TextColumn::make('invoice_number')
+                        ->label('Número')
+                        ->searchable()
+                        ->sortable(),
+                ),
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Total')
                     ->money('EUR')

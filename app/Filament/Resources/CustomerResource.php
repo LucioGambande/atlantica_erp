@@ -93,10 +93,12 @@ class CustomerResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable(isIndividual: true, isGlobal: false)
-                    ->sortable()
-                    ->toggleable(),
+                TableUi::customerLink(
+                    Tables\Columns\TextColumn::make('name')
+                        ->searchable(isIndividual: true, isGlobal: false)
+                        ->sortable()
+                        ->toggleable(),
+                ),
                 Tables\Columns\TextColumn::make('priceList.name')
                     ->label('Lista de precios')
                     ->placeholder('Default')

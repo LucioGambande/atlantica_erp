@@ -281,11 +281,13 @@ class OrderResource extends Resource
                     ->label('ID')
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Cliente')
-                    ->searchable(isIndividual: true, isGlobal: false)
-                    ->sortable()
-                    ->toggleable(),
+                TableUi::customerLink(
+                    Tables\Columns\TextColumn::make('customer.name')
+                        ->label('Cliente')
+                        ->searchable(isIndividual: true, isGlobal: false)
+                        ->sortable()
+                        ->toggleable(),
+                ),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
@@ -299,13 +301,12 @@ class OrderResource extends Resource
                     ->money('EUR')
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('invoice.invoice_number')
-                    ->label('Factura')
-                    ->placeholder('—')
-                    ->toggleable()
-                    ->url(fn (Order $record): ?string => $record->invoice
-                        ? InvoiceResource::getUrl('edit', ['record' => $record->invoice])
-                        : null),
+                TableUi::invoiceLink(
+                    Tables\Columns\TextColumn::make('invoice.invoice_number')
+                        ->label('Factura')
+                        ->placeholder('—')
+                        ->toggleable(),
+                ),
                 Tables\Columns\TextColumn::make('ordered_at')
                     ->label('Fecha pedido')
                     ->dateTime('d/m/Y H:i')

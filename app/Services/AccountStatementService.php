@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
 use App\Models\Payment;
-use App\Support\InvoiceLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -463,7 +462,7 @@ class AccountStatementService
     {
         $prefix = $invoice->isCreditNote() ? 'Nota de crédito' : 'Factura';
 
-        return $prefix.' '.InvoiceLabel::numberAndDate($invoice);
+        return $prefix.' '.$invoice->invoice_number;
     }
 
     protected function paymentDescription(Payment $payment): string
@@ -479,7 +478,7 @@ class AccountStatementService
                         return 'Factura: '.number_format((float) $allocation->amount, 2, ',', '.').' €';
                     }
 
-                    return InvoiceLabel::withAllocatedAmount($invoice, (float) $allocation->amount);
+                    return $invoice->invoice_number.': '.number_format((float) $allocation->amount, 2, ',', '.').' €';
                 })
                 ->all();
 
@@ -492,7 +491,7 @@ class AccountStatementService
         $invoice = $payment->invoice;
 
         if ($invoice !== null) {
-            return $method.' — Factura '.InvoiceLabel::numberAndDate($invoice);
+            return $method.' — Factura '.$invoice->invoice_number;
         }
 
         return $method.' #'.$payment->id;
