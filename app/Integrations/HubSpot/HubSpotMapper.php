@@ -29,7 +29,13 @@ class HubSpotMapper
                 continue;
             }
 
-            $mapped[$column] = $this->castValue($properties[$hubspotProperty] ?? null, $type);
+            $value = $this->castValue($properties[$hubspotProperty] ?? null, $type);
+
+            if ($value !== null) {
+                $mapped[$column] = $value;
+            } elseif (! array_key_exists($column, $mapped)) {
+                $mapped[$column] = null;
+            }
         }
 
         return $mapped;

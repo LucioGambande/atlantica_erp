@@ -21,10 +21,13 @@ return [
     */
     'company_field_map' => [
         'name' => ['column' => 'name', 'type' => 'string'],
+        'nombre_fiscal' => ['column' => 'fiscal_name', 'type' => 'string'],
+        'razon_social' => ['column' => 'fiscal_name', 'type' => 'string'],
         'phone' => ['column' => 'phone', 'type' => 'string'],
         'domain' => ['column' => 'website', 'type' => 'string'],
         'city' => ['column' => 'city', 'type' => 'string'],
         'address' => ['column' => 'address', 'type' => 'string'],
+        'address2' => ['column' => 'fiscal_address', 'type' => 'string'],
         'zip' => ['column' => 'postal_code', 'type' => 'string'],
         'country' => ['column' => 'country', 'type' => 'string'],
         'hs_lastmodifieddate' => ['column' => 'hubspot_last_modified_at', 'type' => 'datetime'],

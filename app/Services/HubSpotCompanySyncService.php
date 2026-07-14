@@ -79,6 +79,21 @@ class HubSpotCompanySyncService
     }
 
     /**
+     * @throws \InvalidArgumentException
+     * @return array{processed:int,created:int,updated:int,failed:int}
+     */
+    public function syncCustomer(Customer $customer): array
+    {
+        $hubspotCompanyId = $customer->hubspot_company_id;
+
+        if (! is_string($hubspotCompanyId) || $hubspotCompanyId === '') {
+            throw new \InvalidArgumentException('Este cliente no está vinculado a HubSpot.');
+        }
+
+        return $this->syncByHubSpotCompanyId($hubspotCompanyId);
+    }
+
+    /**
      * @param array<string, mixed> $companyData
      * @return array{processed:int,created:int,updated:int,failed:int}
      */

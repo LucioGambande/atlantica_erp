@@ -53,39 +53,80 @@ class CustomerResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->label('Nombre / razón social')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Select::make('price_list_id')
-                    ->label('Lista de precios')
-                    ->options(fn (): array => PriceList::query()->active()->orderBy('name')->pluck('name', 'id')->all())
-                    ->searchable()
-                    ->preload()
-                    ->nullable()
-                    ->placeholder('Sin lista asignada — se usará la lista default')
-                    ->helperText('Al crear facturas y pedidos, los precios se precargarán desde esta lista.'),
-                Forms\Components\TextInput::make('tax_id')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('email')
-                    ->email()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('phone')
-                    ->tel()
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('address')
-                    ->columnSpanFull(),
-                Forms\Components\Select::make('customer_type')
-                    ->options([
-                        'horeca' => 'Horeca',
-                        'individual' => 'Individual',
+                Forms\Components\Section::make('Datos generales')
+                    ->schema([
+                        Forms\Components\TextInput::make('name')
+                            ->label('Nombre comercial')
+                            ->required()
+                            ->maxLength(255),
+                        Forms\Components\Select::make('price_list_id')
+                            ->label('Lista de precios')
+                            ->options(fn (): array => PriceList::query()->active()->orderBy('name')->pluck('name', 'id')->all())
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->placeholder('Sin lista asignada — se usará la lista default')
+                            ->helperText('Al crear facturas y pedidos, los precios se precargarán desde esta lista.'),
+                        Forms\Components\TextInput::make('tax_id')
+                            ->label('NIF/CIF')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('email')
+                            ->email()
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('phone')
+                            ->tel()
+                            ->maxLength(255),
+                        Forms\Components\Select::make('customer_type')
+                            ->label('Tipo de cliente')
+                            ->options([
+                                'horeca' => 'Horeca',
+                                'individual' => 'Individual',
+                            ])
+                            ->required(),
+                        Forms\Components\TextInput::make('credit_limit')
+                            ->label('Límite de crédito')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0),
                     ])
-                    ->required(),
-                Forms\Components\TextInput::make('credit_limit')
-                    ->required()
-                    ->numeric()
-                    ->minValue(0)
-                    ->default(0),
+                    ->columns(2),
+                Forms\Components\Section::make('Datos fiscales')
+                    ->description('Se sincronizan desde HubSpot: Razón social (nombre_fiscal / razon_social) y Dirección 2 (address2).')
+                    ->schema([
+                        Forms\Components\TextInput::make('fiscal_name')
+                            ->label('Razón social')
+                            ->maxLength(255),
+                        Forms\Components\Textarea::make('fiscal_address')
+                            ->label('Dirección fiscal')
+                            ->columnSpanFull(),
+                        Forms\Components\Textarea::make('address')
+                            ->label('Dirección comercial')
+                            ->columnSpanFull(),
+                        Forms\Components\TextInput::make('city')
+                            ->label('Ciudad')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('postal_code')
+                            ->label('Código postal')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('country')
+                            ->label('País')
+                            ->maxLength(255),
+                    ])
+                    ->columns(2),
+                Forms\Components\Section::make('HubSpot')
+                    ->schema([
+                        Forms\Components\TextInput::make('hubspot_company_id')
+                            ->label('ID HubSpot')
+                            ->disabled()
+                            ->dehydrated(false),
+                        Forms\Components\DateTimePicker::make('last_synced_at')
+                            ->label('Última sincronización')
+                            ->disabled()
+                            ->dehydrated(false),
+                    ])
+                    ->columns(2)
+                    ->visible(fn (?Customer $record): bool => $record !== null),
             ]);
     }
 

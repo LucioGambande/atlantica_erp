@@ -3,7 +3,7 @@
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
 > La documentación técnica completa está en `PROJECT.md`.
 > **Mantener actualizado** al completar cambios funcionales (ver regla `.cursor/rules/maintain-context-md.mdc`).
-> Última actualización: 8 de julio 2026.
+> Última actualización: 14 de julio 2026.
 
 ---
 
@@ -164,6 +164,8 @@ $user->assignRole('accountant');
 - Token válido: `pat-eu1-...` o `pat-na1-...` (no Developer API key `eu1-...`)
 - **Sin `queue:work` activo, los jobs se encolan pero no se ejecutan.**
 - Match de clientes: primero por `hubspot_company_id`, fallback por `website`.
+- Campos fiscales en `customers`: `fiscal_name` ← HubSpot `nombre_fiscal` / `razon_social`; `fiscal_address` ← HubSpot `address2` (Dirección 2).
+- Sync manual por cliente: botón **Sincronizar desde HubSpot** en edición de cliente (`EditCustomer` → `HubSpotCompanySyncService::syncCustomer`). Requiere `hubspot_company_id`.
 
 ---
 
