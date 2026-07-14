@@ -30,6 +30,8 @@ return [
         'address2' => ['column' => 'fiscal_address', 'type' => 'string'],
         'zip' => ['column' => 'postal_code', 'type' => 'string'],
         'country' => ['column' => 'country', 'type' => 'string'],
+        'nif' => ['column' => 'tax_id', 'type' => 'string'],
+        'hs_tax_id' => ['column' => 'tax_id', 'type' => 'string'],
         'hs_lastmodifieddate' => ['column' => 'hubspot_last_modified_at', 'type' => 'datetime'],
     ],
 
@@ -39,7 +41,6 @@ return [
     'erp_only_fields' => [
         'customer_type',
         'credit_limit',
-        'tax_id',
     ],
 
     'webhook' => [

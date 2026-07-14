@@ -136,8 +136,8 @@ class InvoicePrintService
             'due_at' => $issuedAt->copy()->addDays($paymentTermsDays),
             'issuer' => $issuer,
             'customer' => [
-                'name' => $customer?->name ?? '—',
-                'address' => $customer?->address,
+                'name' => $customer?->billingName() ?? '—',
+                'address' => $customer?->billingAddress(),
                 'tax_id' => $customer?->tax_id,
                 'postal_code' => $customer?->postal_code,
                 'city' => $customer?->city,

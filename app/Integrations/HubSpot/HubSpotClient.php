@@ -94,18 +94,15 @@ class HubSpotClient
         $token = trim((string) config('hubspot.access_token'));
 
         if ($token === '') {
-            throw new RuntimeException('HUBSPOT_ACCESS_TOKEN is not configured.');
+            throw new RuntimeException(
+                HubSpotClient::explainTokenConfiguration('') ?? 'HUBSPOT_ACCESS_TOKEN is not configured.',
+            );
         }
 
         if (! str_starts_with($token, 'pat-')) {
-            $hint = preg_match('/^(eu1|na1)-/', $token)
-                ? 'You may have pasted a Developer API key (eu1-/na1-); use the Private App access token (pat-eu1-/pat-na1-) instead. '
-                : '';
-
             throw new RuntimeException(
-                'HUBSPOT_ACCESS_TOKEN does not look like a Private App token (expected prefix pat-na1- or pat-eu1-). '
-                .$hint
-                .'Settings → Integrations → Private Apps → Auth → Show token.'
+                HubSpotClient::explainTokenConfiguration($token)
+                    ?? 'HUBSPOT_ACCESS_TOKEN does not look like a Private App token.',
             );
         }
 
@@ -138,14 +135,35 @@ class HubSpotClient
         $status = $exception->response?->status();
 
         if ($status === 401) {
-            return 'HubSpot rejected the access token (401). Use a full Private App token (pat-eu1-... or pat-na1-...) '
-                .'with scope crm.objects.companies.read, then restart queue:work after updating .env.';
+            return 'HubSpot rechazó el token (401). Usá un access token de Private App completo (pat-eu1-... o pat-na1-...) '
+                .'con el scope crm.objects.companies.read. En Laravel Cloud: guardá la variable, redeployá y volvé a intentar.';
         }
 
         if ($status === 403) {
-            return 'HubSpot denied access (403). Check that the Private App has scope crm.objects.companies.read.';
+            return 'HubSpot denegó el acceso (403). Verificá que la Private App tenga el scope crm.objects.companies.read.';
         }
 
         return $exception->getMessage();
+    }
+
+    public static function explainTokenConfiguration(?string $token = null): ?string
+    {
+        $token = trim((string) ($token ?? config('hubspot.access_token')));
+
+        if ($token === '') {
+            return 'HUBSPOT_ACCESS_TOKEN no está configurado. En Laravel Cloud agregalo en Variables de entorno y redeployá la app.';
+        }
+
+        if (! str_starts_with($token, 'pat-')) {
+            $hint = preg_match('/^(eu1|na1)-/', $token)
+                ? 'Parece una Developer API key (eu1-/na1-), no un token de Private App. '
+                : '';
+
+            return $hint
+                .'El token debe empezar con pat-eu1- o pat-na1-. '
+                .'HubSpot → Settings → Integrations → Private Apps → [tu app] → Auth → Show token.';
+        }
+
+        return null;
     }
 }

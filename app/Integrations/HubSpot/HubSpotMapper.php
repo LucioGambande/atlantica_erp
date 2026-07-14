@@ -31,8 +31,10 @@ class HubSpotMapper
 
             $value = $this->castValue($properties[$hubspotProperty] ?? null, $type);
 
-            if ($value !== null) {
-                $mapped[$column] = $value;
+            if ($this->hasMappedValue($value)) {
+                if (! $this->hasMappedValue($mapped[$column] ?? null)) {
+                    $mapped[$column] = $value;
+                }
             } elseif (! array_key_exists($column, $mapped)) {
                 $mapped[$column] = null;
             }
@@ -90,6 +92,19 @@ class HubSpotMapper
         $stringValue = trim((string) $value);
 
         return $stringValue !== '' ? $stringValue : null;
+    }
+
+    protected function hasMappedValue(mixed $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+
+        return true;
     }
 
     /**

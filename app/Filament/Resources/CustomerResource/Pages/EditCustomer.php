@@ -4,12 +4,14 @@ namespace App\Filament\Resources\CustomerResource\Pages;
 
 use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\CustomerResource\Widgets\ClientBalanceWidget;
+use App\Integrations\HubSpot\HubSpotClient;
 use App\Services\HubSpotCompanySyncService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Http\Client\RequestException;
 use InvalidArgumentException;
+use RuntimeException;
 use Throwable;
 
 class EditCustomer extends EditRecord
@@ -49,10 +51,16 @@ class EditCustomer extends EditRecord
                             ->body($exception->getMessage())
                             ->warning()
                             ->send();
+                    } catch (RuntimeException $exception) {
+                        Notification::make()
+                            ->title('Token de HubSpot incorrecto')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
                     } catch (RequestException $exception) {
                         Notification::make()
                             ->title('Error de conexión con HubSpot')
-                            ->body($exception->getMessage())
+                            ->body(HubSpotClient::explainHttpFailure($exception))
                             ->danger()
                             ->send();
                     } catch (Throwable $exception) {

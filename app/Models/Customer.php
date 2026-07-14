@@ -105,4 +105,22 @@ class Customer extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function billingName(): string
+    {
+        if (filled($this->fiscal_name)) {
+            return $this->fiscal_name;
+        }
+
+        return $this->name ?? '—';
+    }
+
+    public function billingAddress(): ?string
+    {
+        if (filled($this->fiscal_address)) {
+            return $this->fiscal_address;
+        }
+
+        return $this->address;
+    }
 }
