@@ -3,7 +3,7 @@
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
 > La documentación técnica completa está en `PROJECT.md`.
 > **Mantener actualizado** al completar cambios funcionales (ver regla `.cursor/rules/maintain-context-md.mdc`).
-> Última actualización: 14 de julio 2026.
+> Última actualización: 15 de julio 2026.
 
 ---
 
@@ -72,7 +72,8 @@ Cliente HubSpot → sync → Customer en Laravel
 
 - Botón **Facturar pedido** en pedido (`InvoiceService::createFromOrder`)
 - Si falla la facturación desde pedido (por ejemplo, stock insuficiente), el panel muestra el motivo exacto y evita 500. Para facturar sin descontar inventario, desmarcar **Genera movimiento de stock** en la acción de facturar pedido.
-- **Crear factura manual** en `Facturas → Crear`: incluye repetidor de **líneas** (producto obligatorio, cantidad, precio, dto.) que calcula `total_amount`; las líneas se crean en `CreateInvoice::afterCreate` y se recalcula el total. Editar líneas posteriores desde el relation manager de la ficha.
+- **Crear factura manual** en `Facturas → Crear`: incluye repetidor de **líneas** (producto obligatorio, cantidad, precio, dto.) en neto; `recalculateTotalFromItems()` persiste el **total con IVA** en `total_amount`. Las líneas se crean en `CreateInvoice::afterCreate`. Editar líneas posteriores desde el relation manager de la ficha.
+- **Importes con IVA en UI:** listados (Total, Cobrado, Pendiente), vista de factura, widget de pendientes y dashboard usan `Invoice::grossAmount()` y `remainingAmount()` (bruto − imputado). Las líneas siguen en neto; el IVA se deriva con `config/invoices.php` → `default_vat_rate` (21%).
 - Numeración correlativa: `{prefix}{año}-{secuencia}` — ej. `HORECA2025-00082` (`InvoiceNumberGenerator`, config en `config/invoices.php`)
 - Validación número/fecha al emitir (`InvoiceSequenceValidator`)
 - `issued_at` y `ordered_at` default `now()` al crear
@@ -87,7 +88,7 @@ Cliente HubSpot → sync → Customer en Laravel
 - Cobro multi-factura desde cuenta corriente → **Registrar cobro** con imputaciones (`payment_allocations`)
 - Selector **Facturas a liquidar** (multi-select): al elegir una o más facturas pendientes, completa automáticamente importe del cobro e imputaciones al 100% del saldo de cada una (`PaymentAllocationForm`)
 - Transferencia bancaria: `transaction_number` es **opcional** (columna nullable)
-- Selector de facturas a imputar (dropdown de pagos) muestra **número · fecha — pendiente** (`InvoiceLabel::withPendingAmount`); en listados y cuenta corriente se muestra solo el número de factura
+- Selector de facturas a imputar (dropdown de pagos) muestra **número · fecha — pendiente** (`InvoiceLabel::withPendingAmount`); al editar un cobro, las facturas ya imputadas siguen en el selector aunque estén liquidadas (`getOptionLabelUsing` + claves string). En listados y cuenta corriente se muestra solo el número de factura
 - En tablas Filament, **número de factura** y **nombre de cliente** son enlaces clicables a la ficha (`TableUi::invoiceLink`, `TableUi::customerLink`)
 
 ### Cuenta corriente
@@ -109,7 +110,7 @@ Cliente HubSpot → sync → Customer en Laravel
 
 - Formato tipo factura estándar: logo arriba a la derecha, emisor/cliente en dos columnas, vencimiento +21 días, IBAN
 - **Líneas en neto (sin IVA):** la columna "Precio" muestra el importe de línea sin impuestos; se mantiene la columna informativa de tipo de IVA (21%)
-- **Desglose fiscal** abajo a la derecha (entre tabla y total): `Base imponible` (suma neta) → `IVA (21%)` (importe nominal) → `TOTAL` (con IVA). El total impreso equivale a `invoices.total_amount` (que ya se almacena en bruto, con IVA)
+- **Desglose fiscal** abajo a la derecha (entre tabla y total): `Base imponible` (suma neta) → `IVA (21%)` (importe nominal) → `TOTAL` (con IVA). El total impreso coincide con `Invoice::grossAmount()` (legacy importado ya venía en bruto en BD; facturas nuevas recalculan bruto al guardar líneas)
 - Cálculo en `InvoicePrintService::buildPrintData()`: `subtotal` = suma de líneas netas, `vat_amount` = subtotal × tasa, `total` = subtotal + IVA
 - **PDF por defecto** vía `barryvdh/laravel-dompdf` (`?format=html` para vista previa en navegador)
 - Config emisor/IVA/plazo/logo: `config/invoices.php` y variables `INVOICE_ISSUER_*`, `INVOICE_LOGO_PATH`

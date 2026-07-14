@@ -265,17 +265,18 @@ class InvoiceResource extends Resource
                 Forms\Components\Hidden::make('total_amount')
                     ->default(0),
                 Forms\Components\Placeholder::make('total_preview')
-                    ->label('Total')
+                    ->label('Total (con IVA)')
                     ->content(function (Get $get, ?Invoice $record): string {
                         $lines = $get('line_items');
 
                         if (is_array($lines) && $lines !== []) {
-                            $sum = collect($lines)->sum(fn ($row): float => is_array($row) ? (float) ($row['total_price'] ?? 0) : 0);
+                            $net = collect($lines)->sum(fn ($row): float => is_array($row) ? (float) ($row['total_price'] ?? 0) : 0);
+                            $vatRate = (float) config('invoices.default_vat_rate', 0.21);
 
-                            return Number::currency($sum, 'EUR');
+                            return Number::currency(round($net * (1 + $vatRate), 2), 'EUR');
                         }
 
-                        return Number::currency((float) ($record?->total_amount ?? 0), 'EUR');
+                        return Number::currency($record?->grossAmount() ?? 0, 'EUR');
                     }),
                 Forms\Components\Checkbox::make('generates_stock_movement')
                     ->label('Genera movimiento de stock')
@@ -441,10 +442,15 @@ class InvoiceResource extends Resource
                     ->label('Stock')
                     ->boolean()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('total_amount')
+                Tables\Columns\TextColumn::make('gross_amount')
                     ->label('Total')
+                    ->state(fn (Invoice $record): float => $record->grossAmount())
                     ->money('EUR')
-                    ->sortable()
+                    ->sortable(query: function ($query, string $direction): void {
+                        $billableTotal = Invoice::billableTotalSql();
+
+                        $query->orderByRaw("{$billableTotal} {$direction}");
+                    })
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('paid_amount')
                     ->label('Cobrado')

@@ -276,7 +276,7 @@ class PaymentService
             ->when($paymentId !== null, fn ($query) => $query->where('payment_id', '!=', $paymentId))
             ->sum('amount');
 
-        return max(0, round((float) $invoice->total_amount - $allocatedElsewhere, 2));
+        return max(0, round($invoice->grossAmount() - $allocatedElsewhere, 2));
     }
 
     /**

@@ -43,7 +43,8 @@ class DashboardStatsWidget extends BaseWidget
                     'invoiced' => (float) Invoice::query()
                         ->whereIn('status', ['issued', 'paid'])
                         ->whereBetween('issued_at', [$monthStart, $monthEnd])
-                        ->sum('total_amount'),
+                        ->get()
+                        ->sum(fn (Invoice $invoice): float => $invoice->grossAmount()),
                     'customersWithDebt' => Customer::query()->withDebt()->count(),
                     'customersOverCreditLimit' => Customer::query()
                         ->where('credit_limit', '>', 0)

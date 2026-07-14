@@ -143,6 +143,45 @@ class Invoice extends Model
         return $this->hasMany(PaymentAllocation::class);
     }
 
+    public function vatRate(): float
+    {
+        return (float) config('invoices.default_vat_rate', 0.21);
+    }
+
+    public function netAmount(): float
+    {
+        $this->loadMissing('invoiceItems');
+
+        $fromItems = round((float) $this->invoiceItems->sum(
+            fn (InvoiceItem $item): float => $item->discounted_total,
+        ), 2);
+
+        if ($fromItems > 0) {
+            return $fromItems;
+        }
+
+        if ((float) $this->total_amount === 0.0) {
+            return 0.0;
+        }
+
+        return round(abs((float) $this->total_amount) / (1 + $this->vatRate()), 2);
+    }
+
+    public function grossAmount(): float
+    {
+        if ($this->isCreditNote()) {
+            return round(abs((float) $this->total_amount), 2);
+        }
+
+        $net = $this->netAmount();
+
+        if ($net > 0) {
+            return round($net * (1 + $this->vatRate()), 2);
+        }
+
+        return round((float) $this->total_amount, 2);
+    }
+
     public function paidAmount(): float
     {
         if (array_key_exists('payment_allocations_sum_amount', $this->attributes)) {
@@ -184,7 +223,7 @@ class Invoice extends Model
             return 0;
         }
 
-        return max(0, round((float) $this->total_amount - $this->paidAmount(), 2));
+        return max(0, round($this->grossAmount() - $this->paidAmount(), 2));
     }
 
     public function isFullyPaid(): bool
@@ -211,24 +250,28 @@ class Invoice extends Model
 
     public function scopeSettled(Builder $query): Builder
     {
+        $billableTotal = static::billableTotalSql();
+
         return $query
             ->where('document_type', 'invoice')
-            ->where(function (Builder $q): void {
+            ->where(function (Builder $q) use ($billableTotal): void {
                 $q->where('status', 'paid')
                     ->orWhereRaw(
-                        'total_amount <= COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE payment_allocations.invoice_id = invoices.id), 0)'
+                        "{$billableTotal} <= COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE payment_allocations.invoice_id = invoices.id), 0)"
                     );
             });
     }
 
     public function scopeUnsettled(Builder $query): Builder
     {
+        $billableTotal = static::billableTotalSql();
+
         return $query
             ->where('document_type', 'invoice')
-            ->where(function (Builder $q): void {
+            ->where(function (Builder $q) use ($billableTotal): void {
                 $q->where('status', '!=', 'paid')
                     ->whereRaw(
-                        'total_amount > COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE payment_allocations.invoice_id = invoices.id), 0)'
+                        "{$billableTotal} > COALESCE((SELECT SUM(amount) FROM payment_allocations WHERE payment_allocations.invoice_id = invoices.id), 0)"
                     );
             });
     }
@@ -245,12 +288,19 @@ class Invoice extends Model
     {
         $this->loadMissing('invoiceItems');
 
-        $total = $this->invoiceItems->sum(
+        $net = $this->invoiceItems->sum(
             fn (InvoiceItem $item): float => $item->discounted_total,
         );
 
         $this->update([
-            'total_amount' => round($total, 2),
+            'total_amount' => round($net * (1 + $this->vatRate()), 2),
         ]);
+    }
+
+    public static function billableTotalSql(string $alias = 'invoices'): string
+    {
+        $vatFactor = round(1 + (float) config('invoices.default_vat_rate', 0.21), 4);
+
+        return "GREATEST({$alias}.total_amount, COALESCE((SELECT ROUND(SUM(total_price) * {$vatFactor}, 2) FROM invoice_items WHERE invoice_id = {$alias}.id), 0))";
     }
 }

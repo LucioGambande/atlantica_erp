@@ -29,7 +29,7 @@ class EditPayment extends EditRecord
 
         $data['allocations'] = $this->getRecord()->allocations
             ->map(fn ($allocation): array => [
-                'invoice_id' => $allocation->invoice_id,
+                'invoice_id' => (string) $allocation->invoice_id,
                 'amount' => $allocation->amount,
             ])
             ->values()

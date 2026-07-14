@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InvoiceResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
+use App\Models\Invoice;
 use Filament\Actions;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
@@ -53,8 +54,9 @@ class ViewInvoice extends ViewRecord
                         Infolists\Components\TextEntry::make('issued_at')
                             ->label('Fecha de emisión')
                             ->dateTime(),
-                        Infolists\Components\TextEntry::make('total_amount')
-                            ->label('Total')
+                        Infolists\Components\TextEntry::make('gross_amount')
+                            ->label('Total (con IVA)')
+                            ->state(fn (Invoice $record): float => $record->grossAmount())
                             ->money('EUR'),
                     ])
                     ->columns(2),

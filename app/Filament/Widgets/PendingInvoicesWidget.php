@@ -43,10 +43,11 @@ class PendingInvoicesWidget extends BaseWidget
                         ->searchable()
                         ->sortable(),
                 ),
-                Tables\Columns\TextColumn::make('total_amount')
+                Tables\Columns\TextColumn::make('gross_amount')
                     ->label('Total')
+                    ->state(fn (Invoice $record): float => $record->grossAmount())
                     ->money('EUR')
-                    ->sortable(),
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('issued_at')
                     ->label('Emitida')
                     ->dateTime('d/m/Y')

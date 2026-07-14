@@ -35,8 +35,15 @@ class PaymentAllocationForm
             ->multiple()
             ->searchable()
             ->options(function (Get $get) use ($customerId): array {
-                return static::invoiceOptions(static::resolveCustomerId($get, $customerId));
+                $extraIds = collect($get('allocations') ?? [])
+                    ->pluck('invoice_id')
+                    ->filter()
+                    ->map(fn ($id): int => (int) $id)
+                    ->all();
+
+                return static::invoiceOptions(static::resolveCustomerId($get, $customerId), $extraIds);
             })
+            ->getOptionLabelsUsing(fn (array $values): array => static::resolveInvoiceLabels($values))
             ->visible(function (Get $get) use ($customerId): bool {
                 return static::resolveCustomerId($get, $customerId) > 0;
             })
@@ -70,8 +77,15 @@ class PaymentAllocationForm
                 Forms\Components\Select::make('invoice_id')
                     ->label('Factura')
                     ->options(function (Get $get) use ($customerId): array {
-                        return static::invoiceOptions(static::resolveCustomerId($get, $customerId));
+                        $extraIds = collect($get('allocations') ?? [])
+                            ->pluck('invoice_id')
+                            ->filter()
+                            ->map(fn ($id): int => (int) $id)
+                            ->all();
+
+                        return static::invoiceOptions(static::resolveCustomerId($get, $customerId), $extraIds);
                     })
+                    ->getOptionLabelUsing(fn ($value): ?string => static::resolveInvoiceLabel($value))
                     ->searchable()
                     ->required()
                     ->live()
@@ -151,7 +165,7 @@ class PaymentAllocationForm
                 }
 
                 return [
-                    'invoice_id' => (int) $invoiceId,
+                    'invoice_id' => (string) $invoiceId,
                     'amount' => $invoice->remainingAmount(),
                 ];
             })
@@ -192,19 +206,58 @@ class PaymentAllocationForm
     }
 
     /**
+     * @param  list<int>  $includeInvoiceIds
      * @return array<string, string>
      */
-    public static function invoiceOptions(int $customerId): array
+    public static function invoiceOptions(int $customerId, array $includeInvoiceIds = []): array
     {
         if ($customerId <= 0) {
             return [];
         }
 
-        return app(PaymentService::class)
-            ->pendingInvoicesForCustomer($customerId)
+        $pending = app(PaymentService::class)->pendingInvoicesForCustomer($customerId);
+
+        $extra = $includeInvoiceIds === []
+            ? collect()
+            : Invoice::query()
+                ->where('customer_id', $customerId)
+                ->whereIn('id', $includeInvoiceIds)
+                ->get();
+
+        return $pending
+            ->merge($extra)
+            ->unique('id')
+            ->sortBy('issued_at')
+            ->sortBy('id')
             ->mapWithKeys(function (Invoice $invoice): array {
-                return [$invoice->id => InvoiceLabel::withPendingAmount($invoice)];
+                return [(string) $invoice->id => InvoiceLabel::withPendingAmount($invoice)];
             })
+            ->all();
+    }
+
+    public static function resolveInvoiceLabel(mixed $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        $invoice = Invoice::query()->find((int) $value);
+
+        if ($invoice === null) {
+            return (string) $value;
+        }
+
+        return InvoiceLabel::withPendingAmount($invoice);
+    }
+
+    /**
+     * @param  list<int|string>  $values
+     * @return array<string, string>
+     */
+    public static function resolveInvoiceLabels(array $values): array
+    {
+        return collect($values)
+            ->mapWithKeys(fn ($value): array => [(string) $value => static::resolveInvoiceLabel($value) ?? (string) $value])
             ->all();
     }
 

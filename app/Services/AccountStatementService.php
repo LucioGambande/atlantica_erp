@@ -32,7 +32,7 @@ class AccountStatementService
             return $this->findEntryFor($invoice, $type);
         }
 
-        $amount = abs((float) $invoice->total_amount);
+        $amount = $invoice->grossAmount();
 
         if ($amount <= 0) {
             return null;
@@ -167,7 +167,7 @@ class AccountStatementService
                     ->get();
 
                 foreach ($invoices as $invoice) {
-                    $amount = abs((float) $invoice->total_amount);
+                    $amount = $invoice->grossAmount();
 
                     if ($amount <= 0) {
                         continue;
