@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Invoice;
@@ -12,6 +13,7 @@ use App\Services\PriceResolutionService;
 use App\Services\InvoiceService;
 use App\Support\ErpAuthorization;
 use App\Support\LineItemTotals;
+use App\Support\VatTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -161,13 +163,13 @@ class OrderResource extends Resource
                         Forms\Components\Hidden::make('total_amount')
                             ->default(0),
                         Forms\Components\Placeholder::make('order_total_preview')
-                            ->label('Total del pedido (vista previa)')
-                            ->content(function (Get $get): string {
+                            ->label('Total (con IVA)')
+                            ->content(function (Get $get, ?Order $record): string {
                                 $lines = $get('orderItems') ?? [];
                                 if (! is_array($lines)) {
-                                    return '—';
+                                    return Number::currency($record?->grossAmount() ?? 0, 'EUR');
                                 }
-                                $sum = collect($lines)->sum(function ($row) {
+                                $net = collect($lines)->sum(function ($row) {
                                     if (! is_array($row)) {
                                         return 0;
                                     }
@@ -175,7 +177,7 @@ class OrderResource extends Resource
                                     return (float) ($row['total_price'] ?? 0);
                                 });
 
-                                return Number::currency($sum, 'EUR');
+                                return Number::currency(VatTotals::grossFromNet($net), 'EUR');
                             }),
                     ])
                     ->columns(2),
@@ -291,15 +293,22 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => StatusBadge::orderLabel($state))
+                    ->color(fn (string $state): string => StatusBadge::order($state))
                     ->extraHeaderAttributes(TableUi::headerSelectFilter('status', [
                         'pending' => 'Pendiente',
                         'completed' => 'Completado',
                         'cancelled' => 'Cancelado',
                     ]))
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('total_amount')
+                Tables\Columns\TextColumn::make('gross_amount')
+                    ->label('Total')
+                    ->state(fn (Order $record): float => $record->grossAmount())
                     ->money('EUR')
-                    ->sortable()
+                    ->sortable(query: function (Builder $query, string $direction): void {
+                        $factor = VatTotals::factor();
+                        $query->orderByRaw("(orders.total_amount * {$factor}) {$direction}");
+                    })
                     ->toggleable(),
                 TableUi::invoiceLink(
                     Tables\Columns\TextColumn::make('invoice.invoice_number')

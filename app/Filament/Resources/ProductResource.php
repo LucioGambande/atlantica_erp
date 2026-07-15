@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\ProductResource\Pages;
+use App\Filament\Support\StatusBadge;
 use App\Models\Product;
 use App\Support\ErpAuthorization;
 use Filament\Forms;
@@ -111,11 +112,7 @@ class ProductResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->badge()
-                    ->color(fn (int $state): string => match (true) {
-                        $state <= 0 => 'danger',
-                        $state <= 5 => 'warning',
-                        default => 'success',
-                    })
+                    ->color(fn (int $state): string => StatusBadge::stockLevel($state))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

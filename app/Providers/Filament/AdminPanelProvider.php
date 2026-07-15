@@ -36,9 +36,9 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Blue,
                 'danger' => Color::Red,
-                'warning' => Color::Red,
-                'success' => Color::Sky,
-                'info' => Color::Blue,
+                'warning' => Color::Amber,
+                'success' => Color::Green,
+                'info' => Color::Amber,
                 'gray' => Color::Slate,
             ])
             ->sidebarFullyCollapsibleOnDesktop()
@@ -177,6 +177,26 @@ class AdminPanelProvider extends PanelProvider
     .fi-panel-admin .fi-ta-table > .fi-ta-header,
     .fi-panel-admin .fi-ta-table > .fi-ta-body {
         min-width: max-content;
+    }
+
+    /* Semáforo en pills de estado: verde / amarillo / rojo bien diferenciados */
+    .fi-panel-admin .fi-badge.fi-color-success {
+        --c-50: 240 253 244;
+        --c-400: 74 222 128;
+        --c-600: 22 163 74;
+        --c-950: 5 46 22;
+    }
+    .fi-panel-admin .fi-badge.fi-color-warning {
+        --c-50: 255 251 235;
+        --c-400: 251 191 36;
+        --c-600: 217 119 6;
+        --c-950: 69 26 3;
+    }
+    .fi-panel-admin .fi-badge.fi-color-danger {
+        --c-50: 254 242 242;
+        --c-400: 248 113 113;
+        --c-600: 220 38 38;
+        --c-950: 69 10 10;
     }
 </style>
 CSS

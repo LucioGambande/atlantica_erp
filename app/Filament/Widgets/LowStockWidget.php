@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Support\StatusBadge;
 use App\Filament\Pages\StockReport;
 use App\Filament\Resources\ProductResource;
 use App\Models\Product;
@@ -48,11 +49,10 @@ class LowStockWidget extends BaseWidget
                     ->numeric()
                     ->sortable()
                     ->badge()
-                    ->color(fn (Product $record): string => match (true) {
-                        (int) $record->stock <= 0 => 'danger',
-                        (int) $record->stock <= StockReportService::LOW_STOCK_THRESHOLD => 'warning',
-                        default => 'success',
-                    }),
+                    ->color(fn (Product $record): string => StatusBadge::stockLevel(
+                        (int) $record->stock,
+                        StockReportService::LOW_STOCK_THRESHOLD,
+                    )),
                 Tables\Columns\TextColumn::make('sale_price')
                     ->label('PVP')
                     ->money('EUR')

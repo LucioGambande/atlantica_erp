@@ -4,6 +4,7 @@ namespace App\Filament\Resources\CustomerResource\Pages;
 
 use App\Filament\Forms\PaymentAllocationForm;
 use App\Filament\Forms\PaymentDetailForm;
+use App\Filament\Support\StatusBadge;
 use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\InvoiceResource;
 use App\Filament\Resources\PaymentResource;
@@ -223,13 +224,7 @@ class CustomerStatement extends Page implements HasForms, HasTable
                     ->label('Tipo')
                     ->badge()
                     ->formatStateUsing(fn (LedgerEntry $record): string => $record->typeLabel())
-                    ->color(fn (LedgerEntry $record): string => match ($record->type) {
-                        LedgerEntry::TYPE_INVOICE => 'warning',
-                        LedgerEntry::TYPE_PAYMENT => 'success',
-                        LedgerEntry::TYPE_CREDIT_NOTE => 'info',
-                        LedgerEntry::TYPE_ADJUSTMENT => 'gray',
-                        default => 'gray',
-                    }),
+                    ->color(fn (LedgerEntry $record): string => StatusBadge::ledgerEntryType($record->type)),
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descripción')
                     ->searchable()
@@ -244,12 +239,7 @@ class CustomerStatement extends Page implements HasForms, HasTable
 
                         return $record->reference->settlementStatus();
                     })
-                    ->color(fn (?string $state): string => match ($state) {
-                        'Liquidada' => 'success',
-                        'Parcial' => 'warning',
-                        'Pendiente' => 'danger',
-                        default => 'gray',
-                    })
+                    ->color(fn (?string $state): string => StatusBadge::settlement($state))
                     ->placeholder('—')
                     ->visible(fn (): bool => ! $this->excludeSettledInvoices),
                 Tables\Columns\TextColumn::make('debit')

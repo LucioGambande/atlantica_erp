@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Filament\Resources\PurchaseInvoiceResource\Pages;
 use App\Filament\Resources\PurchaseInvoiceResource\RelationManagers;
@@ -69,6 +70,8 @@ class PurchaseInvoiceResource extends Resource
                     ->required()
                     ->default('draft'),
                 Forms\Components\TextInput::make('total_amount')
+                    ->label('Total (con IVA)')
+                    ->helperText('Importe final con IVA. Si hay líneas, el total se calcula desde ellas.')
                     ->required()
                     ->numeric()
                     ->minValue(0)
@@ -92,16 +95,24 @@ class PurchaseInvoiceResource extends Resource
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
+                    ->label('Estado')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => StatusBadge::purchaseInvoiceLabel($state))
+                    ->color(fn (string $state): string => StatusBadge::purchaseInvoice($state))
                     ->extraHeaderAttributes(TableUi::headerSelectFilter('status', [
                         'draft' => 'Borrador',
                         'received' => 'Recibida',
                         'paid' => 'Pagada',
                     ]))
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('total_amount')
+                Tables\Columns\TextColumn::make('gross_amount')
+                    ->label('Total')
+                    ->state(fn (PurchaseInvoice $record): float => $record->grossAmount())
                     ->money('EUR')
-                    ->sortable()
+                    ->sortable(query: function (Builder $query, string $direction): void {
+                        $factor = \App\Support\VatTotals::factor();
+                        $query->orderByRaw("(purchase_invoices.total_amount * {$factor}) {$direction}");
+                    })
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('received_at')
                     ->dateTime()

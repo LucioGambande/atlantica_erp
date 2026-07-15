@@ -3,7 +3,7 @@
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
 > La documentación técnica completa está en `PROJECT.md`.
 > **Mantener actualizado** al completar cambios funcionales (ver regla `.cursor/rules/maintain-context-md.mdc`).
-> Última actualización: 15 de julio 2026.
+> Última actualización: 15 de julio de 2026.
 
 ---
 
@@ -26,7 +26,7 @@ Este ERP es la fuente de verdad operativa del negocio. No es un proyecto de agen
 
 Entorno local: `./vendor/bin/sail up -d`. Puerto app: `8081`. Puerto PostgreSQL: `5433`.
 
-Panel Filament: menú lateral en 4 grupos (**Facturación**, **Inventario**, **Clientes**, **Compras**), colapsable tipo hamburguesa en desktop (`sidebarFullyCollapsibleOnDesktop`). Listados con selector de columnas visibles (`toggleable` en todas las columnas).
+Panel Filament: menú lateral en 4 grupos (**Facturación**, **Inventario**, **Clientes**, **Compras**), colapsable tipo hamburguesa en desktop (`sidebarFullyCollapsibleOnDesktop`). Listados con selector de columnas visibles (`toggleable` en todas las columnas). **Badges de estado (semáforo):** verde = OK/pagada/completada, amarillo = en curso/emitida/parcial, rojo = pendiente crítico/cancelada/sin stock; criterio centralizado en `App\Filament\Support\StatusBadge` y colores del panel en `AdminPanelProvider` (`success`=Green, `warning`=Amber, `danger`=Red).
 
 > Todos los comandos artisan deben correr dentro de Sail: `./vendor/bin/sail artisan ...`
 
@@ -73,7 +73,7 @@ Cliente HubSpot → sync → Customer en Laravel
 - Botón **Facturar pedido** en pedido (`InvoiceService::createFromOrder`)
 - Si falla la facturación desde pedido (por ejemplo, stock insuficiente), el panel muestra el motivo exacto y evita 500. Para facturar sin descontar inventario, desmarcar **Genera movimiento de stock** en la acción de facturar pedido.
 - **Crear factura manual** en `Facturas → Crear`: incluye repetidor de **líneas** (producto obligatorio, cantidad, precio, dto.) en neto; `recalculateTotalFromItems()` persiste el **total con IVA** en `total_amount`. Las líneas se crean en `CreateInvoice::afterCreate`. Editar líneas posteriores desde el relation manager de la ficha.
-- **Importes con IVA en UI:** listados (Total, Cobrado, Pendiente), vista de factura, widget de pendientes y dashboard usan `Invoice::grossAmount()` y `remainingAmount()` (bruto − imputado). Las líneas siguen en neto; el IVA se deriva con `config/invoices.php` → `default_vat_rate` (21%).
+- **Importes con IVA en UI:** listados de **facturas**, **pedidos** y **facturas de compra** muestran el total final con IVA (`grossAmount()`). Cobrado/Pendiente en facturas y cuenta corriente también en bruto. Las líneas de documentos siguen en neto; el IVA se deriva con `config/invoices.php` → `default_vat_rate` (21%). Helper: `App\Support\VatTotals`.
 - Numeración correlativa: `{prefix}{año}-{secuencia}` — ej. `HORECA2025-00082` (`InvoiceNumberGenerator`, config en `config/invoices.php`)
 - Validación número/fecha al emitir (`InvoiceSequenceValidator`)
 - `issued_at` y `ordered_at` default `now()` al crear
@@ -181,7 +181,7 @@ $user->assignRole('accountant');
 | Listas de precios | `PriceListResource`, `PriceResolutionService` |
 | Cuenta corriente | `AccountStatementService`, `CustomerStatement`, `ledger:rebuild` |
 | Stock | `StockService`, `StockReport`, `stock:sanitize` |
-| Panel Filament | `AdminPanelProvider`, `TableUi`, `app/Filament/Widgets/`, `app/Filament/Pages/Dashboard.php` |
+| Panel Filament | `AdminPanelProvider`, `StatusBadge`, `TableUi`, `app/Filament/Widgets/`, `app/Filament/Pages/Dashboard.php` |
 | Permisos | `RolesAndPermissionsSeeder`, `ErpAuthorization`, `InvoicePrintAuthorization` |
 
 ### Tablas del panel

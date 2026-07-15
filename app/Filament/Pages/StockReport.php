@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\ProductResource;
 use App\Filament\Resources\StockMovementResource;
+use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Models\Product;
 use App\Services\StockReportService;
@@ -79,11 +80,10 @@ class StockReport extends Page implements HasTable
                     ->alignEnd()
                     ->toggleable()
                     ->badge()
-                    ->color(fn (Product $record): string => match (true) {
-                        (int) $record->stock <= 0 => 'danger',
-                        (int) $record->stock <= StockReportService::LOW_STOCK_THRESHOLD => 'warning',
-                        default => 'success',
-                    }),
+                    ->color(fn (Product $record): string => StatusBadge::stockLevel(
+                        (int) $record->stock,
+                        StockReportService::LOW_STOCK_THRESHOLD,
+                    )),
                 Tables\Columns\TextColumn::make('stock_in')
                     ->label('Entradas')
                     ->numeric()

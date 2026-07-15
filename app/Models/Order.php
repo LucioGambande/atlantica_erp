@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\VatTotals;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -47,6 +48,31 @@ class Order extends Model
     public function canBeInvoiced(): bool
     {
         return ! $this->invoice()->exists();
+    }
+
+    public function vatRate(): float
+    {
+        return VatTotals::rate();
+    }
+
+    public function netAmount(): float
+    {
+        $this->loadMissing('orderItems');
+
+        $fromItems = round((float) $this->orderItems->sum(
+            fn (OrderItem $item): float => $item->discounted_total,
+        ), 2);
+
+        if ($fromItems > 0) {
+            return $fromItems;
+        }
+
+        return round((float) $this->total_amount, 2);
+    }
+
+    public function grossAmount(): float
+    {
+        return VatTotals::grossFromNet($this->netAmount());
     }
 
     public function recalculateTotalFromItems(): void

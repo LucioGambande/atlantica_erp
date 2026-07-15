@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Filament\Resources\InvoiceResource\Pages;
 use App\Filament\Resources\InvoiceResource\RelationManagers;
@@ -428,14 +429,7 @@ class InvoiceResource extends Resource
                         'paid' => 'Pagada',
                     ]))
                     ->formatStateUsing(fn (Invoice $record): string => $record->paymentStatusLabel())
-                    ->color(fn (Invoice $record): string => match (true) {
-                        $record->isCancelled() => 'danger',
-                        $record->status === 'draft' => 'gray',
-                        $record->isPartiallyPaid() => 'info',
-                        $record->status === 'issued' => 'warning',
-                        $record->status === 'paid' => 'success',
-                        default => 'gray',
-                    })
+                    ->color(fn (Invoice $record): string => StatusBadge::invoice($record))
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\IconColumn::make('generates_stock_movement')
