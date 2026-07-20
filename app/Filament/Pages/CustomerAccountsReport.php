@@ -47,11 +47,17 @@ class CustomerAccountsReport extends Page implements HasTable
             ->columns([
                 TableUi::customerLink(
                     Tables\Columns\TextColumn::make('name')
-                        ->label('Cliente')
+                        ->label('Nombre comercial')
                         ->searchable(isIndividual: true, isGlobal: false)
                         ->sortable()
                         ->toggleable(),
                 ),
+                Tables\Columns\TextColumn::make('fiscal_name')
+                    ->label('Razón social')
+                    ->placeholder('—')
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('balance')
                     ->label('Saldo')
                     ->money('EUR')

@@ -168,6 +168,7 @@ $user->assignRole('accountant');
 - **Sin `queue:work` activo, los jobs se encolan pero no se ejecutan.**
 - Match de clientes: primero por `hubspot_company_id`, fallback por `website`.
 - Campos fiscales en `customers`: `fiscal_name` ← HubSpot `nombre_fiscal` / `razon_social`; `fiscal_address` ← HubSpot `address2` (Dirección 2); `tax_id` ← HubSpot `nif` / `hs_tax_id`.
+- Listados **Clientes** y **Cuentas corrientes**: columna **Razón social** (`fiscal_name`) con búsqueda individual en cabecera (mismo patrón que nombre/NIF).
 - Sync manual por cliente: botón **Sincronizar desde HubSpot** en edición de cliente (`EditCustomer` → `HubSpotCompanySyncService::syncCustomer`). Requiere `hubspot_company_id`.
 - **Facturación impresa:** usa `fiscal_name` y `fiscal_address` del cliente (`Customer::billingName()` / `billingAddress()`), con fallback a `name` / `address` si fiscales vacíos.
 - Backfill dirección fiscal vacía: `php artisan customers:backfill-fiscal-address` (copia `address` → `fiscal_address` solo si `fiscal_address` está vacío; `--dry-run` para simular).

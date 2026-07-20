@@ -39,7 +39,7 @@ class CustomerResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'email', 'tax_id', 'phone'];
+        return ['name', 'fiscal_name', 'email', 'tax_id', 'phone'];
     }
 
     public static function getEloquentQuery(): Builder
@@ -136,10 +136,17 @@ class CustomerResource extends Resource
             ->columns([
                 TableUi::customerLink(
                     Tables\Columns\TextColumn::make('name')
+                        ->label('Nombre comercial')
                         ->searchable(isIndividual: true, isGlobal: false)
                         ->sortable()
                         ->toggleable(),
                 ),
+                Tables\Columns\TextColumn::make('fiscal_name')
+                    ->label('Razón social')
+                    ->placeholder('—')
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('priceList.name')
                     ->label('Lista de precios')
                     ->placeholder('Default')
