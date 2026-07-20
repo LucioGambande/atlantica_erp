@@ -8,9 +8,9 @@ use Illuminate\Console\Command;
 
 class RebuildLedger extends Command
 {
-    protected $signature = 'ledger:rebuild {customer_id? : ID del cliente (opcional)}';
+    protected $signature = 'ledger:rebuild {customer_id? : ID del cliente (opcional)} {--force : Reconstruir sin confirmación}';
 
-    protected $description = 'Reconstruye el libro mayor y el saldo de cuenta corriente desde facturas y pagos existentes';
+    protected $description = 'Reconstruye el libro mayor y el saldo de cuenta corriente desde facturas (con IVA) y pagos existentes';
 
     public function handle(AccountStatementService $accountStatementService): int
     {
@@ -37,6 +37,12 @@ class RebuildLedger extends Command
 
         if ($count === 0) {
             $this->warn('No hay clientes en la base de datos.');
+
+            return self::SUCCESS;
+        }
+
+        if (! $this->option('force') && ! $this->confirm("¿Reconstruir el libro mayor de {$count} clientes? Los importes de factura se recalcularán con IVA.", true)) {
+            $this->warn('Operación cancelada.');
 
             return self::SUCCESS;
         }

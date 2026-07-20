@@ -14,6 +14,11 @@ use Illuminate\Support\Facades\DB;
 
 class AccountStatementService
 {
+    /**
+     * Registra o actualiza el asiento de una factura/nota de crédito en el libro mayor.
+     * El importe DEBE ser siempre el bruto con IVA (`Invoice::grossAmount()`).
+     * Si el asiento ya existe con un importe incorrecto (p. ej. neto), se corrige.
+     */
     public function registerInvoice(Invoice $invoice): ?LedgerEntry
     {
         if (! in_array($invoice->status, ['issued', 'paid'], true)) {
@@ -24,13 +29,11 @@ class AccountStatementService
             return null;
         }
 
+        $invoice->loadMissing('invoiceItems', 'customer');
+
         $type = $invoice->isCreditNote()
             ? LedgerEntry::TYPE_CREDIT_NOTE
             : LedgerEntry::TYPE_INVOICE;
-
-        if ($this->hasEntryFor($invoice, $type)) {
-            return $this->findEntryFor($invoice, $type);
-        }
 
         $amount = $invoice->grossAmount();
 
@@ -38,16 +41,46 @@ class AccountStatementService
             return null;
         }
 
-        return DB::transaction(function () use ($invoice, $type, $amount): LedgerEntry {
-            $debit = $invoice->isCreditNote() ? 0 : $amount;
-            $credit = $invoice->isCreditNote() ? $amount : 0;
+        $debit = $invoice->isCreditNote() ? 0.0 : $amount;
+        $credit = $invoice->isCreditNote() ? $amount : 0.0;
+        $date = $this->invoiceDate($invoice);
+        $description = $this->invoiceDescription($invoice);
 
+        $existing = $this->findEntryFor($invoice, $type);
+
+        if ($existing !== null) {
+            $sameAmount = abs((float) $existing->debit - $debit) < 0.005
+                && abs((float) $existing->credit - $credit) < 0.005;
+            $sameMeta = (string) $existing->description === $description
+                && (string) $existing->date === (string) $date
+                && (int) $existing->customer_id === (int) $invoice->customer_id;
+
+            if ($sameAmount && $sameMeta) {
+                return $existing;
+            }
+
+            return DB::transaction(function () use ($invoice, $existing, $debit, $credit, $date, $description): LedgerEntry {
+                $existing->update([
+                    'customer_id' => $invoice->customer_id,
+                    'date' => $date,
+                    'description' => $description,
+                    'debit' => $debit,
+                    'credit' => $credit,
+                ]);
+
+                $this->recalculateRunningBalances($invoice->customer);
+
+                return $existing->fresh();
+            });
+        }
+
+        return DB::transaction(function () use ($invoice, $type, $debit, $credit, $date, $description): LedgerEntry {
             $entry = $this->createEntry(
                 customer: $invoice->customer,
                 type: $type,
                 reference: $invoice,
-                date: $this->invoiceDate($invoice),
-                description: $this->invoiceDescription($invoice),
+                date: $date,
+                description: $description,
                 debit: $debit,
                 credit: $credit,
             );
@@ -161,6 +194,7 @@ class AccountStatementService
                 $events = collect();
 
                 $invoices = $client->invoices()
+                    ->with('invoiceItems')
                     ->whereIn('status', ['issued', 'paid'])
                     ->orderBy('issued_at')
                     ->orderBy('id')

@@ -14,20 +14,28 @@ class InvoiceObserver
 
     public function created(Invoice $invoice): void
     {
-        if ($invoice->status === 'issued') {
+        if (in_array($invoice->status, ['issued', 'paid'], true)) {
             $this->accountStatementService->registerInvoice($invoice);
         }
     }
 
     public function updated(Invoice $invoice): void
     {
-        if (! $invoice->wasChanged('status')) {
+        // El asiento puede crearse antes de las líneas / recálculo con IVA.
+        // Hay que re-sincronizar cuando cambian importe, fecha o estado.
+        if (! $invoice->wasChanged(['status', 'total_amount', 'issued_at', 'cancelled_at', 'customer_id'])) {
             return;
         }
 
         $previousStatus = $invoice->getOriginal('status');
 
-        if ($invoice->status === 'issued') {
+        if ($invoice->isCancelled() && ! $invoice->isCreditNote()) {
+            $this->accountStatementService->registerInvoiceReversal($invoice);
+
+            return;
+        }
+
+        if (in_array($invoice->status, ['issued', 'paid'], true)) {
             $this->accountStatementService->registerInvoice($invoice);
         }
 

@@ -60,6 +60,8 @@ class InvoiceService
 
             $invoice->recalculateTotalFromItems();
 
+            app(AccountStatementService::class)->registerInvoice($invoice->fresh(['invoiceItems', 'customer']));
+
             if ($generatesStockMovement) {
                 $this->stockService->applyStockFromInvoice($invoice->fresh());
             }
@@ -106,6 +108,8 @@ class InvoiceService
             }
 
             $creditNote->recalculateTotalFromItems();
+
+            app(AccountStatementService::class)->registerInvoice($creditNote->fresh(['invoiceItems', 'customer']));
 
             if ($invoice->stock_movements_recorded) {
                 $this->stockService->reverseStockFromInvoice($creditNote, $invoice);

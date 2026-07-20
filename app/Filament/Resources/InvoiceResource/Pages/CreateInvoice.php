@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InvoiceResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
+use App\Services\AccountStatementService;
 use App\Services\InvoiceNumberGenerator;
 use App\Services\StockService;
 use App\Support\LineItemTotals;
@@ -66,6 +67,8 @@ class CreateInvoice extends CreateRecord
         }
 
         $invoice->recalculateTotalFromItems();
+
+        app(AccountStatementService::class)->registerInvoice($invoice->fresh(['invoiceItems', 'customer']));
 
         $invoice = $invoice->fresh();
 

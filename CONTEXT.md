@@ -3,7 +3,7 @@
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
 > La documentación técnica completa está en `PROJECT.md`.
 > **Mantener actualizado** al completar cambios funcionales (ver regla `.cursor/rules/maintain-context-md.mdc`).
-> Última actualización: 15 de julio de 2026.
+> Última actualización: 20 de julio de 2026.
 
 ---
 
@@ -96,7 +96,9 @@ Cliente HubSpot → sync → Customer en Laravel
 - Página `/admin/customers/{id}/statement` (`CustomerStatement`)
 - Widget saldo en edición de cliente
 - Botón **Importar movimientos** si hay facturas/pagos pero ledger vacío
-- Rebuild manual: `./vendor/bin/sail artisan ledger:rebuild`
+- **Importes de factura en el ledger = siempre con IVA** (`Invoice::grossAmount()`). `AccountStatementService::registerInvoice()` crea o **corrige** el asiento si el débito quedó en neto (bug histórico: el asiento se creaba al emitir, antes de recalcular el total con IVA, y no se actualizaba).
+- `InvoiceObserver` re-sincroniza el ledger cuando cambian `total_amount`, `status`, `issued_at` o `cancelled_at`.
+- Rebuild manual (producción tras el fix, obligatorio): `php artisan ledger:rebuild` o `php artisan ledger:rebuild 86` (un cliente). Local: `./vendor/bin/sail artisan ledger:rebuild --force`
 - Filtro **Ocultar facturas liquidadas**: excluye del listado las facturas cobradas al 100%. También se refleja en la impresión de cuenta corriente (`exclude_settled=1`).
 
 ### Stock
