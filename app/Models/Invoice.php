@@ -118,7 +118,7 @@ class Invoice extends Model
 
     public function isCreditNote(): bool
     {
-        return $this->document_type === 'credit_note';
+        return $this->document_type === 'credit_note' || (float) $this->total_amount < 0;
     }
 
     public function isCancelled(): bool
@@ -219,7 +219,7 @@ class Invoice extends Model
 
     public function remainingAmount(): float
     {
-        if ($this->isCreditNote() || $this->total_amount < 0) {
+        if ($this->isCreditNote()) {
             return 0;
         }
 
