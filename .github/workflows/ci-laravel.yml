@@ -1,0 +1,45 @@
+# CI base de la agencia para Laravel (variante SQLite) — instalado por ai-skills.
+# Ajustar a los comandos reales del AGENTS.md (coverage mínimo, package manager).
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    # La config de DB la define el phpunit.xml del proyecto (sqlite). No se
+    # sobreescribe con env vars acá: si phpunit.xml apunta a un archivo, el
+    # touch de abajo lo garantiza; si usa :memory:, el archivo queda sin usar.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+          coverage: none
+      - run: composer install --prefer-dist --no-progress
+      - run: ./vendor/bin/pint --test
+      - run: cp .env.example .env && php artisan key:generate
+      - run: touch database/database.sqlite
+      - run: php artisan test
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Respeta el package manager del proyecto (no mezclar yarn/npm)
+      - run: |
+          if [ -f yarn.lock ]; then
+            corepack enable && yarn install --frozen-lockfile
+            yarn lint --if-present || npx --no -- eslint . || true
+            yarn build
+          else
+            npm ci
+            npm run lint --if-present
+            npm run build
+          fi

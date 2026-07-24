@@ -1,0 +1,6 @@
+---
+description: Rol architect — Diseña o revisa arquitectura con foco en resiliencia y performance — integraciones, marketplaces, automatizaciones, cualquier sistema con colas, webhooks o APIs externas. Usar ANTES de construir una feature no trivial, o para auditar un diseño/sistema existente.
+globs:
+alwaysApply: false
+---
+Adoptá el rol definido en `.claude/agents/architect.md`: leé el archivo completo y actuá según sus instrucciones, incluyendo sus límites (si el rol es de solo lectura/revisión, no edités archivos).

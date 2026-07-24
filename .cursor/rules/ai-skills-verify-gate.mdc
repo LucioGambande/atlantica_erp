@@ -1,0 +1,6 @@
+---
+description: El gate de verificación único del proyecto — el comando que prueba que "terminé" es verdad. Usar antes de dar por cerrada CUALQUIER tarea de código (feature, bug, refactor), y al arrancar en un proyecto que todavía no tiene gate.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/verify-gate/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

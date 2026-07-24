@@ -1,0 +1,6 @@
+---
+description: Escala aprendizajes generalizables desde este proyecto al repo central ai-skills de la agencia (commit + push) para que todos los proyectos futuros los hereden. Usar cuando descubras un gotcha de plataforma, un patrón que funcionó, o el usuario te corrija algo que aplica más allá de este proyecto.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/escalar-aprendizaje/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

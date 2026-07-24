@@ -1,0 +1,6 @@
+---
+description: Convenciones Laravel de la agencia — Services/Repositories/DTOs, Eloquent, migrations, Inertia+React, workflow con Sail y PRs. Usar al escribir o modificar código en un proyecto Laravel.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/laravel-conventions/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

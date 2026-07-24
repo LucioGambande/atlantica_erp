@@ -1,0 +1,6 @@
+---
+description: Registro de 10 líneas después de resolver un bug de producción o incidente — síntoma, causa raíz, fix, prevención — conectado al learning loop de la agencia. Usar SIEMPRE después de arreglar algo que llegó a producción o costó más de una iteración diagnosticar.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/postmortem/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

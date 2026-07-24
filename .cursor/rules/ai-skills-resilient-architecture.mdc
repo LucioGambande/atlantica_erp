@@ -1,0 +1,6 @@
+---
+description: Checklist de arquitectura resiliente y performante de la agencia — idempotencia, colas, reintentos, timeouts, caching, N+1, observabilidad. Usar al diseñar features con integraciones/colas/webhooks, al revisar arquitectura, o cuando algo "se pierde", se duplica o anda lento en producción.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/resilient-architecture/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

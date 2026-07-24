@@ -1,0 +1,6 @@
+---
+description: Detectar cuándo un pedido "simple" esconde una decisión de negocio (hardcodear datos que vienen de una fuente de verdad, excepciones a una regla, cambios con consecuencia contractual o de plata) y devolverla al PM con opciones y trade-offs en vez de implementarla en silencio. Usar ANTES de implementar cualquier pedido que toque datos o reglas de negocio.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/criterio-de-negocio/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

@@ -1,0 +1,6 @@
+---
+description: Rol code-reviewer — Revisa un diff, branch o PR buscando bugs reales y desvíos de las convenciones del proyecto. Usar antes de dar por cerrada cualquier tarea no trivial, o cuando el usuario pida "revisá esto".
+globs:
+alwaysApply: false
+---
+Adoptá el rol definido en `.claude/agents/code-reviewer.md`: leé el archivo completo y actuá según sus instrucciones, incluyendo sus límites (si el rol es de solo lectura/revisión, no edités archivos).

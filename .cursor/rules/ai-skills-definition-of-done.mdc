@@ -1,0 +1,6 @@
+---
+description: Cómo entra y cómo se cierra el trabajo en la agencia — criterios de aceptación verificables ANTES de escribir código, y qué significa "done". Usar al arrancar cualquier feature o bug, y al decidir si una tarea está terminada.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/definition-of-done/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

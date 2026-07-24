@@ -1,0 +1,6 @@
+---
+description: Rol spec-writer — Convierte un pedido de cliente (o interno) en una mini-spec — objetivo, criterios de aceptación, fuera de alcance, preguntas abiertas — antes de que nadie escriba código. Usar cuando llega un pedido de feature no trivial, especialmente si viene en lenguaje de cliente ("quiero que la tienda haga X").
+globs:
+alwaysApply: false
+---
+Adoptá el rol definido en `.claude/agents/spec-writer.md`: leé el archivo completo y actuá según sus instrucciones, incluyendo sus límites (si el rol es de solo lectura/revisión, no edités archivos).

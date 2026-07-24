@@ -1,0 +1,6 @@
+---
+description: Cómo escribir y correr tests en proyectos Laravel de la agencia — PHPUnit clásico, factories, RefreshDatabase, qué testear. Usar al escribir tests o al cerrar cualquier cambio de backend en Laravel.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/laravel-testing/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.

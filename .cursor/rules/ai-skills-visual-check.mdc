@@ -1,0 +1,6 @@
+---
+description: Verificación visual obligatoria antes de cerrar cualquier cambio de UI — cómo levantar el dev server según el stack y qué viewports capturar. Usar siempre que un cambio afecte lo que se ve en pantalla.
+globs:
+alwaysApply: false
+---
+Leé completo y seguí `.claude/skills/visual-check/SKILL.md` antes de actuar. Si referencia archivos en `references/`, leé los que apliquen a la tarea.
