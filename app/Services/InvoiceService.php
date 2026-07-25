@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use App\Models\Order;
-use App\Services\InvoiceNumberGenerator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -14,16 +13,19 @@ class InvoiceService
     public function __construct(
         protected StockService $stockService,
         protected InvoiceNumberGenerator $invoiceNumberGenerator,
-    ) {
-    }
+    ) {}
 
     public function createFromOrder(Order $order, bool $generatesStockMovement = true): Invoice
     {
         return DB::transaction(function () use ($order, $generatesStockMovement): Invoice {
-            $order->loadMissing('orderItems.product');
+            $order->loadMissing('orderItems.product', 'customer');
 
             if ($order->orderItems->isEmpty()) {
                 throw new RuntimeException('No se puede facturar un pedido sin líneas.');
+            }
+
+            if (! $order->customer?->hasBillingDataForInvoicing()) {
+                throw new RuntimeException('El cliente no tiene CUIT/tax ID o dirección fiscal cargados. Completá esos datos antes de facturar.');
             }
 
             $existingInvoice = Invoice::query()

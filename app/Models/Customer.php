@@ -4,9 +4,9 @@ namespace App\Models;
 
 use App\Services\AccountStatementService;
 use App\Services\PriceResolutionService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -122,5 +122,10 @@ class Customer extends Model
         }
 
         return $this->address;
+    }
+
+    public function hasBillingDataForInvoicing(): bool
+    {
+        return filled($this->tax_id) && filled($this->billingAddress());
     }
 }

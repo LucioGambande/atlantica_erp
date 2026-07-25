@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InvoiceResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
+use App\Models\Customer;
 use App\Services\AccountStatementService;
 use App\Services\InvoiceNumberGenerator;
 use App\Services\StockService;
@@ -20,6 +21,18 @@ class CreateInvoice extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $customer = Customer::find($data['customer_id'] ?? null);
+
+        if (! $customer?->hasBillingDataForInvoicing()) {
+            Notification::make()
+                ->title('No se pudo crear la factura')
+                ->body('El cliente no tiene CUIT/tax ID o dirección fiscal cargados. Completá esos datos antes de facturar.')
+                ->danger()
+                ->send();
+
+            $this->halt();
+        }
+
         if (blank($data['invoice_number'] ?? null)) {
             $data['invoice_number'] = app(InvoiceNumberGenerator::class)->next();
         }
