@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use App\Models\Order;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -121,5 +124,103 @@ class InvoiceService
 
             return $creditNote->load('invoiceItems.product', 'creditedInvoice');
         });
+    }
+
+    public function paginatedInvoices(
+        ?int $customerId,
+        ?string $customerName,
+        ?string $from,
+        ?string $to,
+        int $perPage,
+    ): LengthAwarePaginator {
+        $query = $this->filteredBillableInvoices($customerId, $customerName, $from, $to)
+            ->with('customer:id,name,fiscal_name')
+            ->with('invoiceItems')
+            ->withSum('paymentAllocations as payment_allocations_sum_amount', 'amount')
+            ->orderByDesc('issued_at');
+
+        return $query->paginate($perPage)->through(fn (Invoice $invoice): array => [
+            'id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'document_type' => $invoice->document_type,
+            'status' => $invoice->status,
+            'customer' => [
+                'id' => $invoice->customer?->id,
+                'name' => $invoice->customer?->billingName(),
+            ],
+            'total_amount' => (float) $invoice->total_amount,
+            'gross_amount' => $invoice->grossAmount(),
+            'remaining_amount' => $invoice->remainingAmount(),
+            'payment_status' => $invoice->paymentStatusLabel(),
+            'issued_at' => $invoice->issued_at?->toDateTimeString(),
+        ]);
+    }
+
+    /**
+     * @return array{documents_count: int, invoices_count: int, credit_notes_count: int, net_total: float}
+     */
+    public function billingSummary(?int $customerId, ?string $customerName, ?string $from, ?string $to): array
+    {
+        $totals = $this->filteredBillableInvoices($customerId, $customerName, $from, $to)
+            ->selectRaw('COUNT(*) as documents_count')
+            ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'invoice' THEN 1 ELSE 0 END), 0) as invoices_count")
+            ->selectRaw("COALESCE(SUM(CASE WHEN document_type = 'credit_note' THEN 1 ELSE 0 END), 0) as credit_notes_count")
+            ->selectRaw('COALESCE(SUM(total_amount), 0) as net_total')
+            ->first();
+
+        return [
+            'documents_count' => (int) $totals->documents_count,
+            'invoices_count' => (int) $totals->invoices_count,
+            'credit_notes_count' => (int) $totals->credit_notes_count,
+            'net_total' => round((float) $totals->net_total, 2),
+        ];
+    }
+
+    /**
+     * Facturación agrupada por día o por mes, útil para series temporales / gráficos.
+     *
+     * @return list<array{period: string, documents_count: int, net_total: float}>
+     */
+    public function billingTrend(
+        ?int $customerId,
+        ?string $customerName,
+        ?string $from,
+        ?string $to,
+        string $groupBy = 'day',
+    ): array {
+        $format = $groupBy === 'month' ? 'Y-m' : 'Y-m-d';
+
+        $rows = $this->filteredBillableInvoices($customerId, $customerName, $from, $to)
+            ->get(['issued_at', 'total_amount']);
+
+        return $rows
+            ->groupBy(fn (Invoice $invoice): string => $invoice->issued_at?->format($format) ?? 'sin-fecha')
+            ->map(fn (Collection $group, string $period): array => [
+                'period' => $period,
+                'documents_count' => $group->count(),
+                'net_total' => round((float) $group->sum('total_amount'), 2),
+            ])
+            ->sortBy('period')
+            ->values()
+            ->all();
+    }
+
+    protected function filteredBillableInvoices(
+        ?int $customerId,
+        ?string $customerName,
+        ?string $from,
+        ?string $to,
+    ): Builder {
+        return Invoice::query()
+            ->whereIn('status', ['issued', 'paid'])
+            ->whereNull('cancelled_at')
+            ->when($customerId, fn (Builder $query, int $id): Builder => $query->where('customer_id', $id))
+            ->when($customerName, fn (Builder $query, string $name): Builder => $query->whereHas(
+                'customer',
+                fn (Builder $query): Builder => $query->where('name', 'like', "%{$name}%")
+                    ->orWhere('fiscal_name', 'like', "%{$name}%"),
+            ))
+            ->when($from, fn (Builder $query, string $from): Builder => $query->whereDate('issued_at', '>=', $from))
+            ->when($to, fn (Builder $query, string $to): Builder => $query->whereDate('issued_at', '<=', $to));
     }
 }
