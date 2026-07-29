@@ -4,9 +4,11 @@ namespace App\Filament\Resources\PriceListResource\RelationManagers;
 
 use App\Models\PriceListItem;
 use App\Models\Product;
+use App\Support\VatTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -46,13 +48,33 @@ class PriceListItemsRelationManager extends RelationManager
                         ),
                     ),
                 Forms\Components\TextInput::make('price')
-                    ->label('Precio')
+                    ->label('Precio (sin IVA)')
                     ->required()
                     ->numeric()
                     ->minValue(0)
                     ->step(0.01)
                     ->prefix('€')
-                    ->live(onBlur: true),
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        $net = max(0, (float) $state);
+                        $set('price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
+                    }),
+                Forms\Components\TextInput::make('price_with_vat')
+                    ->label('Precio (con IVA)')
+                    ->dehydrated(false)
+                    ->numeric()
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->prefix('€')
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        $gross = max(0, (float) $state);
+                        $set('price', $gross > 0 ? (string) VatTotals::netFromGross($gross) : '');
+                    })
+                    ->afterStateHydrated(function (Set $set, Get $get): void {
+                        $net = (float) ($get('price') ?? 0);
+                        $set('price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
+                    }),
                 Forms\Components\TextInput::make('discount_percent')
                     ->label('Dto. adicional')
                     ->numeric()
@@ -62,13 +84,22 @@ class PriceListItemsRelationManager extends RelationManager
                     ->suffix('%')
                     ->live(onBlur: true),
                 Forms\Components\Placeholder::make('final_price_preview')
-                    ->label('Precio final')
+                    ->label('Precio final (sin IVA)')
                     ->content(function (Get $get): string {
                         $price = (float) ($get('price') ?? 0);
                         $discount = (float) ($get('discount_percent') ?? 0);
                         $final = round($price * (1 - $discount / 100), 2);
 
                         return Number::currency($final, 'EUR');
+                    }),
+                Forms\Components\Placeholder::make('final_price_with_vat_preview')
+                    ->label('Precio final (con IVA)')
+                    ->content(function (Get $get): string {
+                        $price = (float) ($get('price') ?? 0);
+                        $discount = (float) ($get('discount_percent') ?? 0);
+                        $final = round($price * (1 - $discount / 100), 2);
+
+                        return Number::currency(VatTotals::grossFromNet($final), 'EUR');
                     }),
             ]);
     }

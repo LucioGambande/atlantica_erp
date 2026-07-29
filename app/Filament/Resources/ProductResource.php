@@ -7,8 +7,11 @@ use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Support\StatusBadge;
 use App\Models\Product;
 use App\Support\ErpAuthorization;
+use App\Support\VatTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -64,18 +67,64 @@ class ProductResource extends Resource
                             ->unique(column: 'sku', ignoreRecord: true),
                     ]),
                 Forms\Components\Section::make('Precios')
-                    ->columns(2)
+                    ->columns(4)
                     ->schema([
                         Forms\Components\TextInput::make('purchase_price')
+                            ->label('P. compra (sin IVA)')
                             ->required()
                             ->numeric()
                             ->minValue(0)
-                            ->step(0.01),
+                            ->step(0.01)
+                            ->prefix('€')
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                $net = max(0, (float) $state);
+                                $set('purchase_price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
+                            }),
+                        Forms\Components\TextInput::make('purchase_price_with_vat')
+                            ->label('P. compra (con IVA)')
+                            ->dehydrated(false)
+                            ->numeric()
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->prefix('€')
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                $gross = max(0, (float) $state);
+                                $set('purchase_price', $gross > 0 ? (string) VatTotals::netFromGross($gross) : '');
+                            })
+                            ->afterStateHydrated(function (Set $set, Get $get): void {
+                                $net = (float) ($get('purchase_price') ?? 0);
+                                $set('purchase_price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
+                            }),
                         Forms\Components\TextInput::make('sale_price')
+                            ->label('P. venta (sin IVA)')
                             ->required()
                             ->numeric()
                             ->minValue(0)
-                            ->step(0.01),
+                            ->step(0.01)
+                            ->prefix('€')
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                $net = max(0, (float) $state);
+                                $set('sale_price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
+                            }),
+                        Forms\Components\TextInput::make('sale_price_with_vat')
+                            ->label('P. venta (con IVA)')
+                            ->dehydrated(false)
+                            ->numeric()
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->prefix('€')
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                $gross = max(0, (float) $state);
+                                $set('sale_price', $gross > 0 ? (string) VatTotals::netFromGross($gross) : '');
+                            })
+                            ->afterStateHydrated(function (Set $set, Get $get): void {
+                                $net = (float) ($get('sale_price') ?? 0);
+                                $set('sale_price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
+                            }),
                     ]),
                 Forms\Components\Section::make('Inventario')
                     ->schema([

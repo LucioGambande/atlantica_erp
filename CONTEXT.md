@@ -3,7 +3,7 @@
 > Este archivo existe para dar contexto operativo y de negocio al asistente IA (Cursor).
 > La documentación técnica completa está en `PROJECT.md`.
 > **Mantener actualizado** al completar cambios funcionales (ver regla `.cursor/rules/maintain-context-md.mdc`).
-> Última actualización: 20 de julio de 2026.
+> Última actualización: 29 de julio de 2026.
 
 ---
 
@@ -74,6 +74,7 @@ Cliente HubSpot → sync → Customer en Laravel
 - Si falla la facturación desde pedido (por ejemplo, stock insuficiente), el panel muestra el motivo exacto y evita 500. Para facturar sin descontar inventario, desmarcar **Genera movimiento de stock** en la acción de facturar pedido.
 - **Crear factura manual** en `Facturas → Crear`: incluye repetidor de **líneas** (producto obligatorio, cantidad, precio, dto.) en neto; `recalculateTotalFromItems()` persiste el **total con IVA** en `total_amount`. Las líneas se crean en `CreateInvoice::afterCreate`. Editar líneas posteriores desde el relation manager de la ficha.
 - **Importes con IVA en UI:** listados de **facturas**, **pedidos** y **facturas de compra** muestran el total final con IVA (`grossAmount()`). Cobrado/Pendiente en facturas y cuenta corriente también en bruto. Las líneas de documentos siguen en neto; el IVA se deriva con `config/invoices.php` → `default_vat_rate` (21%). Helper: `App\Support\VatTotals`.
+- **Entrada bidireccional neto ↔ bruto en formularios:** en `ProductResource` (purchase_price, sale_price), `PriceListItemsRelationManager` (price) y `OrderResource` (unit_price), cada campo de precio tiene un campo virtual gemelo `*_with_vat` (`dehydrated(false)`) que se sincroniza bidireccionalmente via `afterStateUpdated` / `afterStateHydrated`. El storage sigue siendo siempre neto. El campo IVA es siempre el global de config (21%), no por producto.
 - Numeración correlativa: `{prefix}{año}-{secuencia}` — ej. `HORECA2025-00082` (`InvoiceNumberGenerator`, config en `config/invoices.php`)
 - Validación número/fecha al emitir (`InvoiceSequenceValidator`)
 - `issued_at` y `ordered_at` default `now()` al crear

@@ -3,17 +3,18 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
+use App\Filament\Resources\OrderResource\Pages;
 use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
-use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
-use App\Services\PriceResolutionService;
 use App\Services\InvoiceService;
+use App\Services\PriceResolutionService;
 use App\Support\ErpAuthorization;
 use App\Support\LineItemTotals;
 use App\Support\VatTotals;
+use DomainException;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -22,12 +23,11 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use DomainException;
-use Throwable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Number;
 use RuntimeException;
+use Throwable;
 
 class OrderResource extends Resource
 {
@@ -187,7 +187,7 @@ class OrderResource extends Resource
                         Forms\Components\Repeater::make('orderItems')
                             ->relationship()
                             ->live()
-                            ->columns(12)
+                            ->columns(14)
                             ->minItems(1)
                             ->defaultItems(1)
                             ->itemLabel(null)
@@ -212,7 +212,7 @@ class OrderResource extends Resource
                                     ->searchable(['name', 'sku'])
                                     ->preload()
                                     ->required()
-                                    ->columnSpan(5)
+                                    ->columnSpan(6)
                                     ->live()
                                     ->afterStateUpdated(function ($state, Set $set, Get $get): void {
                                         if (! $state) {
@@ -224,6 +224,7 @@ class OrderResource extends Resource
                                             $unitPrice = app(PriceResolutionService::class)
                                                 ->resolvePriceForCustomerId($product, $customerId ? (int) $customerId : null);
                                             $set('unit_price', $unitPrice);
+                                            $set('unit_price_with_vat', $unitPrice > 0 ? (string) VatTotals::grossFromNet((float) $unitPrice) : '');
                                         }
                                         static::recalculateLineTotal($set, $get);
                                     }),
@@ -239,7 +240,7 @@ class OrderResource extends Resource
                                         static::recalculateLineTotal($set, $get);
                                     }),
                                 Forms\Components\TextInput::make('unit_price')
-                                    ->label('P. unit.')
+                                    ->label('P. unit. (sin IVA)')
                                     ->required()
                                     ->numeric()
                                     ->minValue(0)
@@ -248,7 +249,28 @@ class OrderResource extends Resource
                                     ->columnSpan(2)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function (Set $set, Get $get): void {
+                                        $net = max(0, (float) $get('unit_price'));
+                                        $set('unit_price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
                                         static::recalculateLineTotal($set, $get);
+                                    }),
+                                Forms\Components\TextInput::make('unit_price_with_vat')
+                                    ->label('P. unit. (con IVA)')
+                                    ->dehydrated(false)
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->step(0.01)
+                                    ->prefix('€')
+                                    ->columnSpan(2)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                        $gross = max(0, (float) $get('unit_price_with_vat'));
+                                        $net = $gross > 0 ? VatTotals::netFromGross($gross) : 0;
+                                        $set('unit_price', (string) $net);
+                                        static::recalculateLineTotal($set, $get);
+                                    })
+                                    ->afterStateHydrated(function (Set $set, Get $get): void {
+                                        $net = (float) ($get('unit_price') ?? 0);
+                                        $set('unit_price_with_vat', $net > 0 ? (string) VatTotals::grossFromNet($net) : '');
                                     }),
                                 Forms\Components\TextInput::make('discount_percent')
                                     ->label('Dto. (%)')
