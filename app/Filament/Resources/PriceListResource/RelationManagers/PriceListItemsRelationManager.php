@@ -115,18 +115,26 @@ class PriceListItemsRelationManager extends RelationManager
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('price')
-                    ->label('Precio')
+                    ->label('Precio (sin IVA)')
                     ->money('EUR')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('price_with_vat')
+                    ->label('Precio (con IVA)')
+                    ->money('EUR')
+                    ->state(fn (PriceListItem $record): float => VatTotals::grossFromNet($record->price)),
                 Tables\Columns\TextColumn::make('discount_percent')
                     ->label('Dto. (%)')
                     ->numeric(decimalPlaces: 2)
                     ->suffix('%')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('final_price')
-                    ->label('Precio final')
+                    ->label('Final (sin IVA)')
                     ->money('EUR')
                     ->state(fn (PriceListItem $record): float => $record->final_price),
+                Tables\Columns\TextColumn::make('final_price_with_vat')
+                    ->label('Final (con IVA)')
+                    ->money('EUR')
+                    ->state(fn (PriceListItem $record): float => VatTotals::grossFromNet($record->final_price)),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make(),
