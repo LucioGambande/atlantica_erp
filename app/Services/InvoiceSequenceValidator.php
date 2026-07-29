@@ -4,14 +4,14 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 class InvoiceSequenceValidator
 {
     public function __construct(
         protected InvoiceNumberGenerator $numberGenerator,
-    ) {
-    }
+    ) {}
 
     public function validate(string $invoiceNumber, Carbon|string|null $issuedAt, ?int $exceptInvoiceId = null): void
     {
@@ -107,7 +107,7 @@ class InvoiceSequenceValidator
         ];
     }
 
-    protected function invoicesWithParsedSequence(string $prefix, ?int $exceptInvoiceId): \Illuminate\Support\Collection
+    protected function invoicesWithParsedSequence(string $prefix, ?int $exceptInvoiceId): Collection
     {
         return Invoice::query()
             ->when($exceptInvoiceId !== null, fn ($query) => $query->whereKeyNot($exceptInvoiceId))

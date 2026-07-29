@@ -10,8 +10,7 @@ class AccountStatementPrintService
     public function __construct(
         protected AccountStatementService $accountStatementService,
         protected InvoicePrintService $invoicePrintService,
-    ) {
-    }
+    ) {}
 
     public function logoBase64(): ?string
     {

@@ -3,8 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
-use App\Filament\Support\TableUi;
 use App\Filament\Resources\StockMovementResource\Pages;
+use App\Filament\Support\TableUi;
 use App\Models\StockMovement;
 use App\Support\ErpAuthorization;
 use Filament\Forms;

@@ -14,8 +14,7 @@ class StockSanitizerService
 
     public function __construct(
         protected StockService $stockService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{

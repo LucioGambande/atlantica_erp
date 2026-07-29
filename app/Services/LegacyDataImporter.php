@@ -8,10 +8,8 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\Product;
-use App\Services\InvoiceNumberGenerator;
 use App\Support\LegacyCsvReader;
 use App\Support\LegacyDateParser;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -79,8 +77,7 @@ class LegacyDataImporter
         protected PaymentDetailService $paymentDetailService,
         protected AccountStatementService $accountStatementService,
         protected InvoiceNumberGenerator $invoiceNumberGenerator,
-    ) {
-    }
+    ) {}
 
     public function resetInvoiceData(): void
     {

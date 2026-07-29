@@ -3,8 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
-use App\Filament\Support\TableUi;
 use App\Filament\Resources\CustomerResource\Pages;
+use App\Filament\Support\TableUi;
 use App\Models\Customer;
 use App\Models\PriceList;
 use App\Support\ErpAuthorization;

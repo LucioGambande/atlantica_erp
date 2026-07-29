@@ -15,8 +15,7 @@ class PaymentService
 {
     public function __construct(
         protected PaymentDetailService $paymentDetailService,
-    ) {
-    }
+    ) {}
 
     public function registerInvoicePayment(
         Invoice $invoice,
@@ -242,7 +241,7 @@ class PaymentService
             $invoice = Invoice::query()->lockForUpdate()->find($invoiceId);
 
             if ($invoice === null) {
-                throw new InvalidArgumentException("La factura de la imputación #".($index + 1).' no existe.');
+                throw new InvalidArgumentException('La factura de la imputación #'.($index + 1).' no existe.');
             }
 
             if ((int) $invoice->customer_id !== $customerId) {

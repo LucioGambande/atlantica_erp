@@ -2,13 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Payment;
 use App\Models\PaymentDetails\BankTransferPaymentDetail;
 use App\Models\PaymentDetails\BizumPaymentDetail;
 use App\Models\PaymentDetails\CardPaymentDetail;
 use App\Models\PaymentDetails\CashPaymentDetail;
 use App\Models\PaymentDetails\ChequePaymentDetail;
 use App\Models\PaymentDetails\GenericPaymentDetail;
-use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Support\PaymentDetailType;
 use Illuminate\Database\Eloquent\Model;

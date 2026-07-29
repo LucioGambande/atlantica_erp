@@ -2,6 +2,13 @@
 
 namespace App\Support;
 
+use App\Models\PaymentDetails\BankTransferPaymentDetail;
+use App\Models\PaymentDetails\BizumPaymentDetail;
+use App\Models\PaymentDetails\CardPaymentDetail;
+use App\Models\PaymentDetails\CashPaymentDetail;
+use App\Models\PaymentDetails\ChequePaymentDetail;
+use App\Models\PaymentDetails\GenericPaymentDetail;
+
 class PaymentDetailType
 {
     public const BANK_TRANSFER = 'bank_transfer';
@@ -37,12 +44,12 @@ class PaymentDetailType
     public static function modelClass(string $type): string
     {
         return match ($type) {
-            self::BANK_TRANSFER => \App\Models\PaymentDetails\BankTransferPaymentDetail::class,
-            self::CARD => \App\Models\PaymentDetails\CardPaymentDetail::class,
-            self::CASH => \App\Models\PaymentDetails\CashPaymentDetail::class,
-            self::BIZUM => \App\Models\PaymentDetails\BizumPaymentDetail::class,
-            self::CHEQUE => \App\Models\PaymentDetails\ChequePaymentDetail::class,
-            default => \App\Models\PaymentDetails\GenericPaymentDetail::class,
+            self::BANK_TRANSFER => BankTransferPaymentDetail::class,
+            self::CARD => CardPaymentDetail::class,
+            self::CASH => CashPaymentDetail::class,
+            self::BIZUM => BizumPaymentDetail::class,
+            self::CHEQUE => ChequePaymentDetail::class,
+            default => GenericPaymentDetail::class,
         };
     }
 

@@ -12,8 +12,7 @@ class InvoicePrintService
 {
     public function __construct(
         protected InvoiceNumberGenerator $numberGenerator,
-    ) {
-    }
+    ) {}
 
     public function logoBase64(): ?string
     {

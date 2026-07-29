@@ -15,8 +15,7 @@ class PaymentObserver
     public function __construct(
         protected AccountStatementService $accountStatementService,
         protected PaymentService $paymentService,
-    ) {
-    }
+    ) {}
 
     public function created(Payment $payment): void
     {

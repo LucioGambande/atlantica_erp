@@ -20,12 +20,11 @@ class SyncSingleCompanyJob implements ShouldQueue
     public array $backoff = [30, 120, 300, 900];
 
     /**
-     * @param array<string, mixed> $companyData
+     * @param  array<string, mixed>  $companyData
      */
     public function __construct(
         public array $companyData,
-    ) {
-    }
+    ) {}
 
     public function handle(HubSpotCompanySyncService $syncService): void
     {

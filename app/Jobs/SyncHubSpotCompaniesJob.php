@@ -25,8 +25,7 @@ class SyncHubSpotCompaniesJob implements ShouldQueue
 
     public function __construct(
         public bool $full = false,
-    ) {
-    }
+    ) {}
 
     public function handle(
         HubSpotCompanyService $hubSpotCompanyService,

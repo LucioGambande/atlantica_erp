@@ -21,8 +21,7 @@ class SyncSingleCompanyByIdJob implements ShouldQueue
 
     public function __construct(
         public string $hubspotCompanyId,
-    ) {
-    }
+    ) {}
 
     public function handle(HubSpotCompanySyncService $syncService): void
     {

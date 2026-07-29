@@ -3,11 +3,11 @@
 namespace App\Filament\Resources\InvoiceResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
-use App\Support\InvoicePrintAuthorization;
 use App\Models\Invoice;
+use App\Support\InvoicePrintAuthorization;
+use Closure;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use Closure;
 
 class ListInvoices extends ListRecords
 {

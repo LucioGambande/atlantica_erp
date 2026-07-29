@@ -4,6 +4,8 @@ namespace App\Filament\Resources\PaymentResource\Pages;
 
 use App\Filament\Resources\PaymentResource;
 use App\Services\PaymentService;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,8 +16,8 @@ class EditPayment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            \Filament\Actions\ViewAction::make(),
-            \Filament\Actions\DeleteAction::make(),
+            ViewAction::make(),
+            DeleteAction::make(),
         ];
     }
 

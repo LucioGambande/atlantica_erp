@@ -34,7 +34,7 @@ class EditCustomer extends EditRecord
                         $result = app(HubSpotCompanySyncService::class)->syncCustomer($this->getRecord());
 
                         if (($result['failed'] ?? 0) > 0) {
-                            throw new \RuntimeException('HubSpot no devolvió datos válidos para este cliente.');
+                            throw new RuntimeException('HubSpot no devolvió datos válidos para este cliente.');
                         }
 
                         $this->record->refresh();

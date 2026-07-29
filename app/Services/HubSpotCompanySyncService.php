@@ -15,8 +15,7 @@ class HubSpotCompanySyncService
     public function __construct(
         protected HubSpotCompanyService $hubSpotCompanyService,
         protected HubSpotMapper $mapper,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{processed:int,created:int,updated:int,failed:int}
@@ -79,8 +78,9 @@ class HubSpotCompanySyncService
     }
 
     /**
-     * @throws \InvalidArgumentException
      * @return array{processed:int,created:int,updated:int,failed:int}
+     *
+     * @throws \InvalidArgumentException
      */
     public function syncCustomer(Customer $customer): array
     {
@@ -94,7 +94,7 @@ class HubSpotCompanySyncService
     }
 
     /**
-     * @param array<string, mixed> $companyData
+     * @param  array<string, mixed>  $companyData
      * @return array{processed:int,created:int,updated:int,failed:int}
      */
     public function upsertFromHubSpot(array $companyData): array
@@ -152,7 +152,7 @@ class HubSpotCompanySyncService
     }
 
     /**
-     * @param array<string, mixed> $companyData
+     * @param  array<string, mixed>  $companyData
      * @return array{processed:int,created:int,updated:int,failed:int}
      */
     protected function safeUpsert(array $companyData): array
@@ -171,7 +171,7 @@ class HubSpotCompanySyncService
     }
 
     /**
-     * @param array<string, mixed> $mapped
+     * @param  array<string, mixed>  $mapped
      * @return array<string, mixed>
      */
     protected function buildCreatePayload(array $mapped): array
@@ -195,8 +195,8 @@ class HubSpotCompanySyncService
     }
 
     /**
-     * @param array<string, mixed> $existing
-     * @param array<string, mixed> $mapped
+     * @param  array<string, mixed>  $existing
+     * @param  array<string, mixed>  $mapped
      * @return array<string, mixed>
      */
     protected function buildUpdatePayload(array $existing, array $mapped): array
@@ -218,10 +218,6 @@ class HubSpotCompanySyncService
         return $payload;
     }
 
-    /**
-     * @param mixed $existingValue
-     * @param mixed $incomingValue
-     */
     protected function shouldPreserveManualValue(string $field, mixed $existingValue, mixed $incomingValue): bool
     {
         return in_array($field, config('hubspot.erp_only_fields', []), true);
@@ -236,8 +232,8 @@ class HubSpotCompanySyncService
     }
 
     /**
-     * @param array{processed:int,created:int,updated:int,failed:int} $left
-     * @param array{processed:int,created:int,updated:int,failed:int} $right
+     * @param  array{processed:int,created:int,updated:int,failed:int}  $left
+     * @param  array{processed:int,created:int,updated:int,failed:int}  $right
      * @return array{processed:int,created:int,updated:int,failed:int}
      */
     protected function mergeStats(array $left, array $right): array

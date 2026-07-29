@@ -7,7 +7,7 @@ use Carbon\CarbonImmutable;
 class HubSpotMapper
 {
     /**
-     * @param array<string, mixed> $company
+     * @param  array<string, mixed>  $company
      * @return array<string, mixed>
      */
     public function mapCompanyToCustomer(array $company): array
@@ -61,9 +61,6 @@ class HubSpotMapper
         return array_values(array_unique($columns));
     }
 
-    /**
-     * @param mixed $value
-     */
     protected function castValue(mixed $value, string $type): mixed
     {
         if ($value === null || $value === '') {
@@ -80,9 +77,6 @@ class HubSpotMapper
         };
     }
 
-    /**
-     * @param mixed $value
-     */
     protected function nullableString(mixed $value): ?string
     {
         if ($value === null) {
@@ -107,9 +101,6 @@ class HubSpotMapper
         return true;
     }
 
-    /**
-     * @param mixed $value
-     */
     protected function parseHubSpotDate(mixed $value): ?CarbonImmutable
     {
         if ($value === null || $value === '') {

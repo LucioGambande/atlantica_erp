@@ -2,9 +2,9 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Support\StatusBadge;
 use App\Filament\Pages\StockReport;
 use App\Filament\Resources\ProductResource;
+use App\Filament\Support\StatusBadge;
 use App\Models\Product;
 use App\Services\StockReportService;
 use App\Support\ErpAuthorization;
@@ -16,7 +16,7 @@ class LowStockWidget extends BaseWidget
 {
     protected static ?int $sort = 3;
 
-    protected int | string | array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
     {

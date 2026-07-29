@@ -13,8 +13,7 @@ class InvoicePrintController extends Controller
 {
     public function __construct(
         protected InvoicePrintService $printService,
-    ) {
-    }
+    ) {}
 
     public function show(Request $request, int $invoice): View|Response
     {

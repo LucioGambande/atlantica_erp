@@ -9,8 +9,7 @@ class InvoiceObserver
 {
     public function __construct(
         protected AccountStatementService $accountStatementService,
-    ) {
-    }
+    ) {}
 
     public function created(Invoice $invoice): void
     {

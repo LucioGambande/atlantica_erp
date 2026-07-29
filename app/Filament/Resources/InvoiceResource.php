@@ -2,22 +2,21 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\PaymentDetailForm;
 use App\Filament\Navigation\NavigationGroups;
-use App\Filament\Support\StatusBadge;
-use App\Filament\Support\TableUi;
 use App\Filament\Resources\InvoiceResource\Pages;
 use App\Filament\Resources\InvoiceResource\RelationManagers;
-use App\Filament\Forms\PaymentDetailForm;
+use App\Filament\Support\StatusBadge;
+use App\Filament\Support\TableUi;
 use App\Models\Invoice;
+use App\Models\Product;
 use App\Services\InvoiceNumberGenerator;
 use App\Services\InvoicePrintService;
 use App\Services\InvoiceSequenceValidator;
 use App\Services\InvoiceService;
 use App\Services\PaymentService;
 use App\Services\PriceResolutionService;
-use App\Models\Product;
 use App\Support\InvoicePrintAuthorization;
-use RuntimeException;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -31,6 +30,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
 use InvalidArgumentException;
+use RuntimeException;
 
 class InvoiceResource extends Resource
 {

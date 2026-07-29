@@ -40,7 +40,7 @@ class HubSpotClient
     }
 
     /**
-     * @param array<string, mixed> $params
+     * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */
     protected function searchCompaniesByUpdatedAt(array $params): array
@@ -77,7 +77,7 @@ class HubSpotClient
     }
 
     /**
-     * @param array<string, mixed> $params
+     * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */
     protected function buildListParams(array $params): array

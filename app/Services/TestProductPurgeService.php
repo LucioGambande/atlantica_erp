@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Order;
@@ -215,7 +216,7 @@ class TestProductPurgeService
         $accountStatementService = app(AccountStatementService::class);
 
         foreach ($affectedCustomerIds->unique()->filter() as $customerId) {
-            $customer = \App\Models\Customer::query()->find($customerId);
+            $customer = Customer::query()->find($customerId);
 
             if ($customer === null) {
                 continue;

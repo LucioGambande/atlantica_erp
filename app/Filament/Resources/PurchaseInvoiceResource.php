@@ -3,12 +3,13 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
-use App\Filament\Support\StatusBadge;
-use App\Filament\Support\TableUi;
 use App\Filament\Resources\PurchaseInvoiceResource\Pages;
 use App\Filament\Resources\PurchaseInvoiceResource\RelationManagers;
+use App\Filament\Support\StatusBadge;
+use App\Filament\Support\TableUi;
 use App\Models\PurchaseInvoice;
 use App\Support\ErpAuthorization;
+use App\Support\VatTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -110,7 +111,7 @@ class PurchaseInvoiceResource extends Resource
                     ->state(fn (PurchaseInvoice $record): float => $record->grossAmount())
                     ->money('EUR')
                     ->sortable(query: function (Builder $query, string $direction): void {
-                        $factor = \App\Support\VatTotals::factor();
+                        $factor = VatTotals::factor();
                         $query->orderByRaw("(purchase_invoices.total_amount * {$factor}) {$direction}");
                     })
                     ->toggleable(),

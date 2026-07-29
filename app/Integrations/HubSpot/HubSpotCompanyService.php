@@ -6,8 +6,7 @@ class HubSpotCompanyService
 {
     public function __construct(
         protected HubSpotClient $client,
-    ) {
-    }
+    ) {}
 
     /**
      * @return list<string>
@@ -53,7 +52,7 @@ class HubSpotCompanyService
     }
 
     /**
-     * @param array<string, mixed> $response
+     * @param  array<string, mixed>  $response
      * @return array{results: array<int, array<string, mixed>>, next_after: string|null}
      */
     protected function extractPageData(array $response): array

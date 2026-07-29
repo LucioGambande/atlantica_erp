@@ -14,12 +14,11 @@ class ProcessHubSpotWebhookJob implements ShouldQueue
     public int $tries = 3;
 
     /**
-     * @param array<int, array<string, mixed>> $events
+     * @param  array<int, array<string, mixed>>  $events
      */
     public function __construct(
         public array $events,
-    ) {
-    }
+    ) {}
 
     public function handle(): void
     {

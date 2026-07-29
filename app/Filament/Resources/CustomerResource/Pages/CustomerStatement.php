@@ -4,10 +4,10 @@ namespace App\Filament\Resources\CustomerResource\Pages;
 
 use App\Filament\Forms\PaymentAllocationForm;
 use App\Filament\Forms\PaymentDetailForm;
-use App\Filament\Support\StatusBadge;
 use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\InvoiceResource;
 use App\Filament\Resources\PaymentResource;
+use App\Filament\Support\StatusBadge;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
@@ -25,8 +25,6 @@ use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 

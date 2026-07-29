@@ -14,8 +14,7 @@ class AccountStatementPrintController extends Controller
 {
     public function __construct(
         protected AccountStatementPrintService $printService,
-    ) {
-    }
+    ) {}
 
     public function show(Request $request, Customer $customer): View|Response
     {

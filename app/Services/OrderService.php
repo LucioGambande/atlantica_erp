@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
-use App\Services\PriceResolutionService;
 use App\Support\LineItemTotals;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;

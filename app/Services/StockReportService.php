@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\StockMovement;
 use Illuminate\Support\Carbon;
 
 class StockReportService
@@ -23,7 +24,7 @@ class StockReportService
     {
         $products = Product::query()->get();
 
-        $lastMovementAt = \App\Models\StockMovement::query()->max('created_at');
+        $lastMovementAt = StockMovement::query()->max('created_at');
 
         return [
             'products_count' => $products->count(),

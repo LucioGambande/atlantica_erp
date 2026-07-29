@@ -2,6 +2,7 @@
 
 namespace App\Models\PaymentDetails;
 
+use App\Models\Payment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
@@ -13,6 +14,6 @@ class GenericPaymentDetail extends Model
 
     public function payment(): MorphOne
     {
-        return $this->morphOne(\App\Models\Payment::class, 'detail');
+        return $this->morphOne(Payment::class, 'detail');
     }
 }

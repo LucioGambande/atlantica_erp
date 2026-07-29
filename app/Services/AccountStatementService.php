@@ -8,6 +8,7 @@ use App\Models\LedgerEntry;
 use App\Models\Payment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -352,8 +353,8 @@ class AccountStatementService
     }
 
     /**
-     * @param  Builder|\Illuminate\Database\Eloquent\Relations\Relation  $query
-     * @return Builder|\Illuminate\Database\Eloquent\Relations\Relation
+     * @param  Builder|Relation  $query
+     * @return Builder|Relation
      */
     public function applySettledInvoiceExclusion($query, bool $exclude)
     {

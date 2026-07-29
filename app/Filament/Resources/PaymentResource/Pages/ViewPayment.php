@@ -4,6 +4,8 @@ namespace App\Filament\Resources\PaymentResource\Pages;
 
 use App\Filament\Resources\PaymentResource;
 use App\Services\PaymentDetailService;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
@@ -15,8 +17,8 @@ class ViewPayment extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            \Filament\Actions\EditAction::make(),
-            \Filament\Actions\DeleteAction::make(),
+            EditAction::make(),
+            DeleteAction::make(),
         ];
     }
 
