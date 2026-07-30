@@ -40,6 +40,21 @@ class HubSpotClient
     }
 
     /**
+     * @param  array<string, mixed>  $properties
+     * @return array<string, mixed>
+     */
+    public function updateCompany(string $id, array $properties): array
+    {
+        $response = $this->request()
+            ->patch("/crm/v3/objects/companies/{$id}", [
+                'properties' => $properties,
+            ])
+            ->throw();
+
+        return $response->json();
+    }
+
+    /**
      * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */
@@ -140,7 +155,8 @@ class HubSpotClient
         }
 
         if ($status === 403) {
-            return 'HubSpot denegó el acceso (403). Verificá que la Private App tenga el scope crm.objects.companies.read.';
+            return 'HubSpot denegó el acceso (403). Verificá que la Private App tenga los scopes '
+                .'crm.objects.companies.read y, para operaciones de escritura, crm.objects.companies.write.';
         }
 
         return $exception->getMessage();

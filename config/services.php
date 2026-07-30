@@ -39,4 +39,8 @@ return [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'google_geocoding' => [
+        'api_key' => env('GOOGLE_GEOCODING_API_KEY'),
+    ],
+
 ];

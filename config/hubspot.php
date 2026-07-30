@@ -32,6 +32,8 @@ return [
         'country' => ['column' => 'country', 'type' => 'string'],
         'nif' => ['column' => 'tax_id', 'type' => 'string'],
         'hs_tax_id' => ['column' => 'tax_id', 'type' => 'string'],
+        'latitude' => ['column' => 'latitude', 'type' => 'float'],
+        'longitude' => ['column' => 'longitude', 'type' => 'float'],
         'hs_lastmodifieddate' => ['column' => 'hubspot_last_modified_at', 'type' => 'datetime'],
     ],
 
