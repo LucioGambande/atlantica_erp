@@ -25,6 +25,17 @@
             <div id="customer-map-canvas" style="width: 100%; height: 70vh; border-radius: 0.75rem;"></div>
         </div>
 
+        <div class="mt-3 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+            <span class="flex items-center gap-1.5">
+                <span class="inline-block h-3 w-3 rounded-full" style="background-color:#34a853;"></span>
+                Con facturación
+            </span>
+            <span class="flex items-center gap-1.5">
+                <span class="inline-block h-3 w-3 rounded-full" style="background-color:#ea4335;"></span>
+                Sin facturación
+            </span>
+        </div>
+
         @php
             $mapCallback = 'initCustomerMap';
         @endphp
@@ -51,6 +62,9 @@
                                     position,
                                     map,
                                     title: customer.name,
+                                    icon: customer.hasBilled
+                                        ? 'https://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                                        : 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
                                 });
 
                                 marker.addListener('click', () => {

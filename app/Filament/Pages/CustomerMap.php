@@ -33,8 +33,9 @@ class CustomerMap extends Page
         return Customer::query()
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
+            ->withExists(['invoices as has_billed' => fn ($query) => $query->whereIn('status', ['issued', 'paid'])])
             ->orderBy('name')
-            ->get(['id', 'name', 'fiscal_name', 'address', 'city', 'latitude', 'longitude'])
+            ->get()
             ->map(fn (Customer $customer): array => [
                 'id' => $customer->id,
                 'name' => $customer->name,
@@ -42,6 +43,7 @@ class CustomerMap extends Page
                 'city' => $customer->city,
                 'lat' => (float) $customer->latitude,
                 'lng' => (float) $customer->longitude,
+                'hasBilled' => (bool) $customer->has_billed,
             ])
             ->values()
             ->all();
