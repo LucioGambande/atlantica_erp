@@ -112,6 +112,14 @@ class CustomerResource extends Resource
                         Forms\Components\TextInput::make('country')
                             ->label('País')
                             ->maxLength(255),
+                        Forms\Components\TextInput::make('latitude')
+                            ->label('Latitud')
+                            ->numeric()
+                            ->rules(['nullable', 'numeric', 'between:-90,90']),
+                        Forms\Components\TextInput::make('longitude')
+                            ->label('Longitud')
+                            ->numeric()
+                            ->rules(['nullable', 'numeric', 'between:-180,180']),
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('HubSpot')

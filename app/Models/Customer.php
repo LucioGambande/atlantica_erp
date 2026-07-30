@@ -30,6 +30,8 @@ class Customer extends Model
         'city',
         'postal_code',
         'country',
+        'latitude',
+        'longitude',
         'customer_type',
         'credit_limit',
         'hubspot_company_id',
@@ -43,6 +45,8 @@ class Customer extends Model
         return [
             'balance' => 'decimal:2',
             'credit_limit' => 'decimal:2',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
             'hubspot_last_modified_at' => 'datetime',
             'last_synced_at' => 'datetime',
             'hubspot_properties' => 'array',
