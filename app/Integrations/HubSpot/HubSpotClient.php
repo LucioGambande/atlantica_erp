@@ -55,6 +55,92 @@ class HubSpotClient
     }
 
     /**
+     * Returns the ids of every object of $toObjectType associated with $fromObjectId.
+     *
+     * @return list<string>
+     */
+    public function getAssociatedObjectIds(string $fromObjectType, string $fromObjectId, string $toObjectType): array
+    {
+        $ids = [];
+        $after = null;
+
+        do {
+            $response = $this->request()
+                ->get("/crm/v4/objects/{$fromObjectType}/{$fromObjectId}/associations/{$toObjectType}", array_filter([
+                    'limit' => 500,
+                    'after' => $after,
+                ]))
+                ->throw()
+                ->json();
+
+            foreach ($response['results'] ?? [] as $result) {
+                if (isset($result['toObjectId'])) {
+                    $ids[] = (string) $result['toObjectId'];
+                }
+            }
+
+            $after = $response['paging']['next']['after'] ?? null;
+        } while ($after !== null);
+
+        return $ids;
+    }
+
+    /**
+     * Batch-reads objects by id, chunking in groups of 100 (HubSpot's batch limit).
+     *
+     * @param  list<string>  $ids
+     * @param  list<string>  $properties
+     * @return array<int, array<string, mixed>>
+     */
+    public function batchReadObjects(string $objectType, array $ids, array $properties): array
+    {
+        $objects = [];
+
+        foreach (array_chunk($ids, 100) as $chunk) {
+            $response = $this->request()
+                ->post("/crm/v3/objects/{$objectType}/batch/read", [
+                    'properties' => $properties,
+                    'inputs' => array_map(static fn (string $id): array => ['id' => $id], $chunk),
+                ])
+                ->throw()
+                ->json();
+
+            foreach ($response['results'] ?? [] as $result) {
+                $objects[] = $result;
+            }
+        }
+
+        return $objects;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getOwners(): array
+    {
+        $owners = [];
+        $after = null;
+
+        do {
+            $response = $this->request()
+                ->get('/crm/v3/owners', array_filter([
+                    'limit' => 100,
+                    'after' => $after,
+                ]))
+                ->throw()
+                ->json();
+
+            foreach ($response['results'] ?? [] as $owner) {
+                $owners[] = $owner;
+            }
+
+            $after = $response['paging']['next']['after'] ?? null;
+        } while ($after !== null);
+
+        return $owners;
+    }
+
+    /**
      * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */

@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\CustomerResource\Pages;
+use App\Filament\Support\InteractionType;
 use App\Filament\Support\TableUi;
 use App\Models\Customer;
 use App\Models\PriceList;
@@ -46,7 +47,7 @@ class CustomerResource extends Resource
     {
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([SoftDeletingScope::class])
-            ->with('priceList');
+            ->with(['priceList', 'latestInteraction']);
     }
 
     public static function form(Form $form): Form
@@ -166,6 +167,24 @@ class CustomerResource extends Resource
                     ->sortable()
                     ->toggleable()
                     ->color(fn (Customer $record): string => (float) $record->balance > 0 ? 'danger' : 'success'),
+                Tables\Columns\TextColumn::make('latestInteraction.notes')
+                    ->label('Última acción')
+                    ->limit(40)
+                    ->placeholder('—')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('latestInteraction.next_action_type')
+                    ->label('Próxima acción')
+                    ->badge()
+                    ->placeholder('—')
+                    ->formatStateUsing(fn (?string $state): string => InteractionType::options()[$state] ?? '—')
+                    ->color(fn (?string $state): string => InteractionType::color($state))
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('latestInteraction.next_action_at')
+                    ->label('Fecha próxima acción')
+                    ->date()
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('tax_id')
                     ->searchable(isIndividual: true, isGlobal: false)
                     ->toggleable(),
