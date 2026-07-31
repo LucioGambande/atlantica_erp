@@ -55,6 +55,8 @@ class CustomerResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Datos generales')
+                    ->collapsible()
+                    ->collapsed(fn (?Customer $record): bool => $record !== null)
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Nombre comercial')
@@ -94,6 +96,8 @@ class CustomerResource extends Resource
                     ->columns(2),
                 Forms\Components\Section::make('Datos fiscales')
                     ->description('Se sincronizan desde HubSpot: Razón social (nombre_fiscal / razon_social) y Dirección 2 (address2).')
+                    ->collapsible()
+                    ->collapsed(fn (?Customer $record): bool => $record !== null)
                     ->schema([
                         Forms\Components\TextInput::make('fiscal_name')
                             ->label('Razón social')
@@ -124,6 +128,8 @@ class CustomerResource extends Resource
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('HubSpot')
+                    ->collapsible()
+                    ->collapsed(fn (?Customer $record): bool => $record !== null)
                     ->schema([
                         Forms\Components\TextInput::make('hubspot_company_id')
                             ->label('ID HubSpot')
