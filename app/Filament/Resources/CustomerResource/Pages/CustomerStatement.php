@@ -89,6 +89,7 @@ class CustomerStatement extends Page implements HasForms, HasTable
                 ])
                 ->fillForm(fn (): array => [
                     'allocations' => [],
+                    'paid_at' => now(),
                 ])
                 ->mutateFormDataUsing(function (array $data): array {
                     $data['customer_id'] = $this->customerId;
