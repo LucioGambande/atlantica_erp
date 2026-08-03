@@ -59,7 +59,11 @@ class Invoice extends Model
                 return;
             }
 
-            if (! $invoice->isDirty(['invoice_number', 'issued_at', 'status'])) {
+            $isBeingFinalized = $invoice->isDirty('status')
+                && in_array($invoice->status, ['issued', 'paid'], true)
+                && ! in_array($invoice->getOriginal('status'), ['issued', 'paid'], true);
+
+            if (! $invoice->isDirty(['invoice_number', 'issued_at']) && ! $isBeingFinalized) {
                 return;
             }
 
