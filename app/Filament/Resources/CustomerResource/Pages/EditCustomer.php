@@ -5,6 +5,7 @@ namespace App\Filament\Resources\CustomerResource\Pages;
 use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\CustomerResource\Widgets\ClientBalanceWidget;
 use App\Filament\Resources\CustomerResource\Widgets\CustomerInteractionsWidget;
+use App\Filament\Resources\CustomerResource\Widgets\CustomerInvoicesWidget;
 use App\Integrations\HubSpot\HubSpotClient;
 use App\Services\HubSpotCompanySyncService;
 use Filament\Actions;
@@ -87,10 +88,13 @@ class EditCustomer extends EditRecord
     protected function getHeaderWidgets(): array
     {
         return [
+            ClientBalanceWidget::make([
+                'record' => $this->getRecord(),
+            ]),
             CustomerInteractionsWidget::make([
                 'record' => $this->getRecord(),
             ]),
-            ClientBalanceWidget::make([
+            CustomerInvoicesWidget::make([
                 'record' => $this->getRecord(),
             ]),
         ];
