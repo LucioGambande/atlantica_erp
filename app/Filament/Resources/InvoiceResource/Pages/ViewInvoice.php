@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InvoiceResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
+use App\Filament\Widgets\CommentsWidget;
 use App\Models\Invoice;
 use Filament\Actions;
 use Filament\Infolists;
@@ -12,6 +13,15 @@ use Filament\Resources\Pages\ViewRecord;
 class ViewInvoice extends ViewRecord
 {
     protected static string $resource = InvoiceResource::class;
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            CommentsWidget::make([
+                'record' => $this->getRecord(),
+            ]),
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Order extends Model
 {
@@ -43,6 +44,11 @@ class Order extends Model
         return $this->hasOne(Invoice::class)
             ->where('document_type', 'invoice')
             ->whereNull('cancelled_at');
+    }
+
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable')->latest();
     }
 
     public function canBeInvoiced(): bool

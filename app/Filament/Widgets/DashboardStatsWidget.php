@@ -50,6 +50,7 @@ class DashboardStatsWidget extends BaseWidget
                         ->where('credit_limit', '>', 0)
                         ->whereColumn('balance', '>', 'credit_limit')
                         ->count(),
+                    'totalReceivable' => (float) Customer::query()->withDebt()->sum('balance'),
                 ];
             }
         );
@@ -58,6 +59,7 @@ class DashboardStatsWidget extends BaseWidget
         $invoicedThisMonth = $metrics['invoiced'];
         $customersWithDebt = $metrics['customersWithDebt'];
         $customersOverCreditLimit = $metrics['customersOverCreditLimit'];
+        $totalReceivable = $metrics['totalReceivable'];
 
         return [
             Stat::make('Cobrado este mes', Number::currency($collectedThisMonth, 'EUR'))
@@ -72,6 +74,12 @@ class DashboardStatsWidget extends BaseWidget
                 ->color('primary')
                 ->icon('heroicon-o-document-text')
                 ->url(InvoicePrintAuthorization::canPrint() ? InvoiceResource::getUrl('index') : null),
+            Stat::make('Total por cobrar', Number::currency($totalReceivable, 'EUR'))
+                ->description('Suma de saldos con deuda')
+                ->descriptionIcon('heroicon-m-currency-euro')
+                ->color($totalReceivable > 0 ? 'danger' : 'success')
+                ->icon('heroicon-o-currency-euro')
+                ->url(ErpAuthorization::userCan('manage customers') ? CustomerAccountsReport::getUrl() : null),
             Stat::make('Clientes con deuda', (string) $customersWithDebt)
                 ->description('Saldo positivo (riesgo)')
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
