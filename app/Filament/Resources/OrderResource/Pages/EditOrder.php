@@ -4,7 +4,7 @@ namespace App\Filament\Resources\OrderResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
 use App\Filament\Resources\OrderResource;
-use App\Filament\Widgets\CommentsWidget;
+use App\Filament\Support\Widgets\CommentsWidget;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 

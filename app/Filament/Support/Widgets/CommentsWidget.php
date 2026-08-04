@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets;
+namespace App\Filament\Support\Widgets;
 
 use App\Models\Comment;
 use App\Models\Invoice;

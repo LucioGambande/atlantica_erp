@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\InvoiceResource\Pages;
 
 use App\Filament\Resources\InvoiceResource;
-use App\Filament\Widgets\CommentsWidget;
+use App\Filament\Support\Widgets\CommentsWidget;
 use App\Services\StockService;
 use App\Support\InvoicePrintAuthorization;
 use DomainException;
