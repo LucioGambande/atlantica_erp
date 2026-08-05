@@ -27,6 +27,11 @@ class DashboardStatsWidget extends BaseWidget
      */
     protected const STATS_CACHE_TTL = 300;
 
+    /**
+     * Bump al cambiar el shape del array cacheado para invalidar entradas viejas.
+     */
+    protected const STATS_CACHE_VERSION = 2;
+
     protected function getStats(): array
     {
         $monthStart = Carbon::now()->startOfMonth();
@@ -37,7 +42,7 @@ class DashboardStatsWidget extends BaseWidget
         $yearLabel = Carbon::now()->format('Y');
 
         $metrics = Cache::remember(
-            'dashboard_stats:'.$monthStart->format('Y-m'),
+            'dashboard_stats:v'.self::STATS_CACHE_VERSION.':'.$monthStart->format('Y-m'),
             self::STATS_CACHE_TTL,
             static function () use ($monthStart, $monthEnd, $yearStart, $yearEnd): array {
                 $soldInvoiceItems = static fn () => InvoiceItem::query()
