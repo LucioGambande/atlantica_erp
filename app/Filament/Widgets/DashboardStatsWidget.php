@@ -8,6 +8,7 @@ use App\Filament\Resources\InvoiceResource;
 use App\Filament\Resources\PaymentResource;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Support\ErpAuthorization;
 use App\Support\InvoicePrintAuthorization;
@@ -31,11 +32,20 @@ class DashboardStatsWidget extends BaseWidget
         $monthStart = Carbon::now()->startOfMonth();
         $monthEnd = Carbon::now()->endOfMonth();
         $monthLabel = Carbon::now()->translatedFormat('F Y');
+        $yearStart = Carbon::now()->startOfYear();
+        $yearEnd = Carbon::now()->endOfYear();
+        $yearLabel = Carbon::now()->format('Y');
 
         $metrics = Cache::remember(
             'dashboard_stats:'.$monthStart->format('Y-m'),
             self::STATS_CACHE_TTL,
-            static function () use ($monthStart, $monthEnd): array {
+            static function () use ($monthStart, $monthEnd, $yearStart, $yearEnd): array {
+                $soldInvoiceItems = static fn () => InvoiceItem::query()
+                    ->whereHas('invoice', function ($query): void {
+                        $query->where('document_type', 'invoice')
+                            ->whereIn('status', ['issued', 'paid']);
+                    });
+
                 return [
                     'collected' => (float) Payment::query()
                         ->whereBetween('paid_at', [$monthStart, $monthEnd])
@@ -51,6 +61,13 @@ class DashboardStatsWidget extends BaseWidget
                         ->whereColumn('balance', '>', 'credit_limit')
                         ->count(),
                     'totalReceivable' => (float) Customer::query()->withDebt()->sum('balance'),
+                    'bottlesTotal' => (int) $soldInvoiceItems()->sum('quantity'),
+                    'bottlesThisMonth' => (int) $soldInvoiceItems()
+                        ->whereHas('invoice', fn ($query) => $query->whereBetween('issued_at', [$monthStart, $monthEnd]))
+                        ->sum('quantity'),
+                    'bottlesThisYear' => (int) $soldInvoiceItems()
+                        ->whereHas('invoice', fn ($query) => $query->whereBetween('issued_at', [$yearStart, $yearEnd]))
+                        ->sum('quantity'),
                 ];
             }
         );
@@ -60,6 +77,9 @@ class DashboardStatsWidget extends BaseWidget
         $customersWithDebt = $metrics['customersWithDebt'];
         $customersOverCreditLimit = $metrics['customersOverCreditLimit'];
         $totalReceivable = $metrics['totalReceivable'];
+        $bottlesTotal = $metrics['bottlesTotal'];
+        $bottlesThisMonth = $metrics['bottlesThisMonth'];
+        $bottlesThisYear = $metrics['bottlesThisYear'];
 
         return [
             Stat::make('Cobrado este mes', Number::currency($collectedThisMonth, 'EUR'))
@@ -92,6 +112,21 @@ class DashboardStatsWidget extends BaseWidget
                 ->color($customersOverCreditLimit > 0 ? 'warning' : 'success')
                 ->icon('heroicon-o-shield-exclamation')
                 ->url(ErpAuthorization::userCan('manage customers') ? CustomerResource::getUrl('index') : null),
+            Stat::make('Botellas vendidas (total)', Number::format($bottlesTotal))
+                ->description('Histórico')
+                ->descriptionIcon('heroicon-m-archive-box')
+                ->color('gray')
+                ->icon('heroicon-o-archive-box'),
+            Stat::make('Botellas vendidas (mes)', Number::format($bottlesThisMonth))
+                ->description($monthLabel)
+                ->descriptionIcon('heroicon-m-calendar-days')
+                ->color('primary')
+                ->icon('heroicon-o-archive-box'),
+            Stat::make('Botellas vendidas (año)', Number::format($bottlesThisYear))
+                ->description($yearLabel)
+                ->descriptionIcon('heroicon-m-calendar')
+                ->color('primary')
+                ->icon('heroicon-o-archive-box'),
         ];
     }
 }
