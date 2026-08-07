@@ -63,7 +63,10 @@ class PaymentAllocationForm
             ->minValue(0.01)
             ->step(0.01)
             ->live(onBlur: true)
-            ->helperText('Se completa al elegir facturas. Podés aumentarlo si el cliente paga de más (anticipo).');
+            ->afterStateUpdated(function (Set $set, Get $get): void {
+                static::reconcileAllocationsWithAmount($set, $get);
+            })
+            ->helperText('Se completa al elegir facturas. Podés aumentarlo si el cliente paga de más (anticipo). Si lo reducís, se recortan las imputaciones que ya no entren.');
     }
 
     /**
@@ -91,20 +94,27 @@ class PaymentAllocationForm
                     ->live()
                     ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
                         if (blank($state)) {
-                            static::syncPaymentAmountFromAllocations($set, $get);
-                            static::syncQuickInvoiceIdsFromAllocations($set, $get);
-
                             return;
                         }
 
                         $invoice = Invoice::query()->find((int) $state);
 
-                        if ($invoice !== null) {
-                            $set('amount', $invoice->remainingAmount());
+                        if ($invoice === null) {
+                            return;
                         }
 
-                        static::syncPaymentAmountFromAllocations($set, $get);
-                        static::syncQuickInvoiceIdsFromAllocations($set, $get);
+                        $default = $invoice->remainingAmount();
+                        $paymentAmount = round((float) ($get('../../amount') ?? 0), 2);
+
+                        if ($paymentAmount > 0) {
+                            $othersAllocated = collect($get('../../allocations') ?? [])
+                                ->reject(fn (array $row): bool => (string) ($row['invoice_id'] ?? '') === (string) $state)
+                                ->sum(fn (array $row): float => round((float) ($row['amount'] ?? 0), 2));
+
+                            $default = min($default, max(0, round($paymentAmount - $othersAllocated, 2)));
+                        }
+
+                        $set('amount', $default);
                     }),
                 Forms\Components\TextInput::make('amount')
                     ->label('Importe imputado')
@@ -112,21 +122,18 @@ class PaymentAllocationForm
                     ->numeric()
                     ->minValue(0.01)
                     ->step(0.01)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (Set $set, Get $get): void {
-                        static::syncPaymentAmountFromAllocations($set, $get);
-                    }),
+                    ->live(onBlur: true),
             ])
             ->columns(2)
             ->defaultItems(0)
             ->addActionLabel('Agregar factura')
             ->reorderable(false)
             ->live()
-            ->afterStateUpdated(function (?array $state, Set $set, Get $get): void {
-                static::syncPaymentAmountFromAllocations($set, $get);
+            ->afterStateUpdated(function (Set $set, Get $get): void {
+                static::reconcileAllocationsWithAmount($set, $get);
                 static::syncQuickInvoiceIdsFromAllocations($set, $get);
             })
-            ->helperText('Ajustá importes parciales por factura si hace falta. La suma imputada puede ser menor al cobro (anticipo).');
+            ->helperText('Ajustá importes parciales por factura si hace falta. La suma imputada no puede superar el importe del cobro: si se pasa, se recorta automáticamente.');
     }
 
     public static function allocatedSummaryPlaceholder(): Forms\Components\Placeholder
@@ -182,13 +189,48 @@ class PaymentAllocationForm
         }
     }
 
-    public static function syncPaymentAmountFromAllocations(Set $set, Get $get): void
+    /**
+     * Garantiza que la suma de imputaciones nunca supere el importe del cobro.
+     * Si todavía no hay importe cargado, lo completa con la suma imputada
+     * (comportamiento de arranque). Si ya hay un importe, recorta en orden
+     * las imputaciones que se pasen del remanente disponible.
+     */
+    public static function reconcileAllocationsWithAmount(Set $set, Get $get): void
     {
-        $allocated = round(collect($get('allocations') ?? [])
-            ->sum(fn (array $row): float => (float) ($row['amount'] ?? 0)), 2);
+        $allocations = collect($get('allocations') ?? [])->values();
 
-        if ($allocated > 0) {
-            $set('amount', $allocated);
+        if ($allocations->isEmpty()) {
+            return;
+        }
+
+        $amount = round((float) ($get('amount') ?? 0), 2);
+
+        if ($amount <= 0) {
+            $set('amount', round($allocations->sum(fn (array $row): float => (float) ($row['amount'] ?? 0)), 2));
+
+            return;
+        }
+
+        $running = 0.0;
+        $changed = false;
+
+        $clamped = $allocations->map(function (array $row) use ($amount, &$running, &$changed): array {
+            $rowAmount = round((float) ($row['amount'] ?? 0), 2);
+            $room = round(max(0, $amount - $running), 2);
+
+            if ($rowAmount > $room) {
+                $rowAmount = $room;
+                $changed = true;
+            }
+
+            $running = round($running + $rowAmount, 2);
+            $row['amount'] = $rowAmount;
+
+            return $row;
+        })->all();
+
+        if ($changed) {
+            $set('allocations', $clamped);
         }
     }
 
