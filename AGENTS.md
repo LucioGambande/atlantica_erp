@@ -13,7 +13,7 @@
 - **Base de datos:** PostgreSQL — DB de tests: SQLite (`database/database.sqlite`, ver phpunit.xml)
 - **Package manager JS:** npm (lockfile `package-lock.json` — no mezclar con yarn)
 - **Entorno local:** Sail — URL: http://localhost
-- **Branches protegidos:** `main` (único branch remoto actual) — todo por PR desde `feature/<slug>`
+- **Branches protegidos:** ninguno — se commitea y pushea directo a `main`
 - **Coverage mínimo:** sin gate (no configurado)
 
 ## Comandos
