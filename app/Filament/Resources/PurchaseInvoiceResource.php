@@ -46,7 +46,7 @@ class PurchaseInvoiceResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with('supplier');
+            ->with(['supplier', 'purchaseInvoiceItems']);
     }
 
     public static function form(Form $form): Form

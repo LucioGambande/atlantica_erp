@@ -176,7 +176,7 @@ class InvoiceResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['customer', 'order'])
+            ->with(['customer', 'order', 'invoiceItems'])
             ->withSum('paymentAllocations as payment_allocations_sum_amount', 'amount');
     }
 
