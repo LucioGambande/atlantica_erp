@@ -26,7 +26,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Singleton: Laravel resuelve un observer nuevo por cada evento ("Class@method"),
+        // así que sin esto PaymentObserver pierde el estado que guarda en deleting()
+        // para usarlo en deleted() (invoiceIdsToResync).
+        $this->app->singleton(PaymentObserver::class);
     }
 
     /**

@@ -170,16 +170,18 @@ class AccountStatementService
         });
     }
 
-    public function registerPaymentReversal(Payment $payment): ?LedgerEntry
+    public function removePaymentEntry(Payment $payment): void
     {
-        return $this->registerAdjustment(
-            customer: $payment->customer,
-            reference: $payment,
-            description: 'Reversión de pago #'.$payment->id,
-            debit: round((float) $payment->amount, 2),
-            credit: 0,
-            date: Carbon::today(),
-        );
+        $entry = $this->findEntryFor($payment, LedgerEntry::TYPE_PAYMENT);
+
+        if ($entry === null) {
+            return;
+        }
+
+        DB::transaction(function () use ($entry, $payment): void {
+            $entry->delete();
+            $this->recalculateRunningBalances($payment->customer);
+        });
     }
 
     public function rebuildLedger(?Customer $customer = null): void

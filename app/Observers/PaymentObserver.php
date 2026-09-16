@@ -66,7 +66,7 @@ class PaymentObserver
     {
         $payment->loadMissing('customer');
 
-        $this->accountStatementService->registerPaymentReversal($payment);
+        $this->accountStatementService->removePaymentEntry($payment);
 
         foreach ($this->invoiceIdsToResync as $invoiceId) {
             $this->paymentService->syncInvoicePaymentStatus($invoiceId);
