@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\InvoiceService;
+use App\Services\OrderPrintService;
 use App\Services\PriceResolutionService;
 use App\Support\ErpAuthorization;
 use App\Support\LineItemTotals;
@@ -58,7 +59,7 @@ class OrderResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['customer', 'invoice']);
+            ->with(['customer', 'invoice', 'orderItems']);
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
@@ -384,6 +385,31 @@ class OrderResource extends Resource
                         if ($invoice !== null) {
                             $livewire->redirect(InvoiceResource::getUrl('edit', ['record' => $invoice]));
                         }
+                    }),
+                Tables\Actions\Action::make('print')
+                    ->label('Imprimir')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->visible(fn (Order $record): bool => in_array($record->status, app(OrderPrintService::class)->printableStatuses(), true))
+                    ->modalHeading('Imprimir albarán')
+                    ->modalSubmitActionLabel('Imprimir')
+                    ->form([
+                        Forms\Components\Radio::make('with_prices')
+                            ->label('Precios')
+                            ->options([
+                                '1' => 'Con precios',
+                                '0' => 'Sin precios',
+                            ])
+                            ->default('1')
+                            ->required(),
+                    ])
+                    ->action(function (Order $record, array $data, $livewire): void {
+                        $url = route('orders.print', [
+                            'order' => $record,
+                            'with_prices' => $data['with_prices'],
+                        ]);
+
+                        $livewire->redirect($url);
                     }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),

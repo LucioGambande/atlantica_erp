@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountStatementPrintController;
 use App\Http\Controllers\InvoicePrintController;
+use App\Http\Controllers\OrderPrintController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +31,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role_or_permission:manage customers|manage invoices')->group(function (): void {
         Route::get('/admin/customers/{customer}/statement/print', [AccountStatementPrintController::class, 'show'])
             ->name('customers.statement.print');
+    });
+
+    Route::middleware('role_or_permission:manage orders')->group(function (): void {
+        Route::get('/admin/orders/{order}/print', [OrderPrintController::class, 'show'])
+            ->name('orders.print');
     });
 });
 
