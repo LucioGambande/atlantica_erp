@@ -11,5 +11,8 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "laravel-boost@claude-plugins-official": true
   }
 }

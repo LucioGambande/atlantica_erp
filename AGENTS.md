@@ -24,6 +24,7 @@
 ./vendor/bin/sail artisan test          # tests
 ./vendor/bin/sail php ./vendor/bin/pint # lint/formato
 ./vendor/bin/sail npm run build         # assets
+./scripts/optimize.sh                   # cachea config/rutas/componentes Filament (referencia local; en Laravel Cloud estos comandos van en el dashboard: Settings > Deployments > Build Commands)
 ```
 
 - **Backlog / tickets:** sin definir todavía — completar cuando exista (ver skill `definition-of-done`)
