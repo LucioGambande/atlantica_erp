@@ -4,6 +4,8 @@ namespace App\Filament\Pages;
 
 use App\Filament\Navigation\NavigationGroups;
 use App\Support\InvoicePrintAuthorization;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -44,16 +46,36 @@ class PrintInvoices extends Page implements HasForms
     {
         return $form
             ->schema([
+                Radio::make('range_type')
+                    ->label('Filtrar por')
+                    ->options([
+                        'number' => 'Rango de números',
+                        'date' => 'Rango de fechas',
+                    ])
+                    ->default('number')
+                    ->inline()
+                    ->live()
+                    ->columnSpanFull(),
                 TextInput::make('from_number')
                     ->label('Desde número')
                     ->placeholder('HORECA2025-00001')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->visible(fn (callable $get) => $get('range_type') === 'number'),
                 TextInput::make('to_number')
                     ->label('Hasta número')
                     ->placeholder('HORECA2025-00099')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->visible(fn (callable $get) => $get('range_type') === 'number'),
+                DatePicker::make('from_date')
+                    ->label('Desde fecha')
+                    ->required()
+                    ->visible(fn (callable $get) => $get('range_type') === 'date'),
+                DatePicker::make('to_date')
+                    ->label('Hasta fecha')
+                    ->required()
+                    ->visible(fn (callable $get) => $get('range_type') === 'date'),
             ])
             ->columns(2)
             ->statePath('data');
@@ -63,10 +85,15 @@ class PrintInvoices extends Page implements HasForms
     {
         $data = $this->form->getState();
 
-        $url = route('invoices.print.range', [
-            'from' => $data['from_number'],
-            'to' => $data['to_number'],
-        ]);
+        $url = $data['range_type'] === 'date'
+            ? route('invoices.print.range', [
+                'from_date' => $data['from_date'],
+                'to_date' => $data['to_date'],
+            ])
+            : route('invoices.print.range', [
+                'from' => $data['from_number'],
+                'to' => $data['to_number'],
+            ]);
 
         $this->dispatch('open-print-window', url: $url);
     }

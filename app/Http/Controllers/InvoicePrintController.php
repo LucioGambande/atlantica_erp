@@ -25,11 +25,18 @@ class InvoicePrintController extends Controller
 
     public function range(Request $request): View|Response
     {
+        $hasDateRange = $request->query('from_date') !== null || $request->query('to_date') !== null;
+
         try {
-            $invoices = $this->printService->findRangeForPrint(
-                (string) $request->query('from', ''),
-                (string) $request->query('to', ''),
-            );
+            $invoices = $hasDateRange
+                ? $this->printService->findDateRangeForPrint(
+                    (string) $request->query('from_date', ''),
+                    (string) $request->query('to_date', ''),
+                )
+                : $this->printService->findRangeForPrint(
+                    (string) $request->query('from', ''),
+                    (string) $request->query('to', ''),
+                );
         } catch (InvalidArgumentException $exception) {
             abort(422, $exception->getMessage());
         }

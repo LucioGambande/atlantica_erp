@@ -65,6 +65,38 @@ class InvoicePrintService
     /**
      * @return Collection<int, Invoice>
      */
+    public function findDateRangeForPrint(string $fromDate, string $toDate): Collection
+    {
+        $from = trim($fromDate);
+        $to = trim($toDate);
+
+        if ($from === '' || $to === '') {
+            throw new InvalidArgumentException('Indicá la fecha inicial y final del rango.');
+        }
+
+        try {
+            $fromDate = Carbon::parse($from)->startOfDay();
+            $toDate = Carbon::parse($to)->endOfDay();
+        } catch (\Exception) {
+            throw new InvalidArgumentException('Las fechas ingresadas no son válidas.');
+        }
+
+        if ($fromDate->gt($toDate)) {
+            throw new InvalidArgumentException('La fecha inicial no puede ser posterior a la final.');
+        }
+
+        return Invoice::query()
+            ->with(['customer', 'invoiceItems.product'])
+            ->whereIn('status', $this->printableStatuses())
+            ->where('document_type', 'invoice')
+            ->whereBetween('issued_at', [$fromDate, $toDate])
+            ->orderBy('issued_at')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, Invoice>
+     */
     public function findRangeForPrint(string $fromNumber, string $toNumber): Collection
     {
         $from = trim($fromNumber);
