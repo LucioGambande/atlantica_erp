@@ -28,10 +28,13 @@ class InvoicePrintController extends Controller
         $hasDateRange = $request->query('from_date') !== null || $request->query('to_date') !== null;
 
         try {
+            $customerId = $request->query('customer_id');
+
             $invoices = $hasDateRange
                 ? $this->printService->findDateRangeForPrint(
                     (string) $request->query('from_date', ''),
                     (string) $request->query('to_date', ''),
+                    $customerId !== null ? (int) $customerId : null,
                 )
                 : $this->printService->findRangeForPrint(
                     (string) $request->query('from', ''),

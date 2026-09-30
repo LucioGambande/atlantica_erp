@@ -3,9 +3,11 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Navigation\NavigationGroups;
+use App\Models\Customer;
 use App\Support\InvoicePrintAuthorization;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -76,6 +78,14 @@ class PrintInvoices extends Page implements HasForms
                     ->label('Hasta fecha')
                     ->required()
                     ->visible(fn (callable $get) => $get('range_type') === 'date'),
+                Select::make('customer_id')
+                    ->label('Cliente')
+                    ->options(fn (): array => Customer::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('Todos los clientes')
+                    ->visible(fn (callable $get) => $get('range_type') === 'date')
+                    ->columnSpanFull(),
             ])
             ->columns(2)
             ->statePath('data');
@@ -86,10 +96,11 @@ class PrintInvoices extends Page implements HasForms
         $data = $this->form->getState();
 
         $url = $data['range_type'] === 'date'
-            ? route('invoices.print.range', [
+            ? route('invoices.print.range', array_filter([
                 'from_date' => $data['from_date'],
                 'to_date' => $data['to_date'],
-            ])
+                'customer_id' => $data['customer_id'] ?? null,
+            ]))
             : route('invoices.print.range', [
                 'from' => $data['from_number'],
                 'to' => $data['to_number'],

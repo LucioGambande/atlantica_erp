@@ -65,7 +65,7 @@ class InvoicePrintService
     /**
      * @return Collection<int, Invoice>
      */
-    public function findDateRangeForPrint(string $fromDate, string $toDate): Collection
+    public function findDateRangeForPrint(string $fromDate, string $toDate, ?int $customerId = null): Collection
     {
         $from = trim($fromDate);
         $to = trim($toDate);
@@ -90,6 +90,7 @@ class InvoicePrintService
             ->whereIn('status', $this->printableStatuses())
             ->where('document_type', 'invoice')
             ->whereBetween('issued_at', [$fromDate, $toDate])
+            ->when($customerId !== null, fn ($query) => $query->where('customer_id', $customerId))
             ->orderBy('issued_at')
             ->get();
     }
