@@ -17,6 +17,7 @@ use App\Services\InvoiceService;
 use App\Services\PaymentService;
 use App\Services\PriceResolutionService;
 use App\Support\InvoicePrintAuthorization;
+use App\Support\VatTotals;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -173,6 +174,28 @@ class InvoiceResource extends Resource
         return false;
     }
 
+    /**
+     * @param  mixed  $lines
+     * @return array{net: float, vat: float, gross: float}
+     */
+    public static function lineItemsVatBreakdown($lines, ?Invoice $record): array
+    {
+        if (is_array($lines) && $lines !== []) {
+            $net = collect($lines)->sum(fn ($row): float => is_array($row) ? (float) ($row['total_price'] ?? 0) : 0);
+
+            return VatTotals::breakdown($net);
+        }
+
+        if ($record !== null) {
+            $gross = $record->grossAmount();
+            $net = VatTotals::netFromGross($gross);
+
+            return ['net' => $net, 'vat' => round($gross - $net, 2), 'gross' => $gross];
+        }
+
+        return ['net' => 0.0, 'vat' => 0.0, 'gross' => 0.0];
+    }
+
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
@@ -265,20 +288,24 @@ class InvoiceResource extends Resource
                     ->visible(fn (?Invoice $record): bool => $record?->status === 'paid'),
                 Forms\Components\Hidden::make('total_amount')
                     ->default(0),
+                Forms\Components\Placeholder::make('subtotal_preview')
+                    ->label('Subtotal (sin IVA)')
+                    ->content(fn (Get $get, ?Invoice $record): string => Number::currency(
+                        static::lineItemsVatBreakdown($get('line_items'), $record)['net'],
+                        'EUR',
+                    )),
+                Forms\Components\Placeholder::make('vat_preview')
+                    ->label('IVA')
+                    ->content(fn (Get $get, ?Invoice $record): string => Number::currency(
+                        static::lineItemsVatBreakdown($get('line_items'), $record)['vat'],
+                        'EUR',
+                    )),
                 Forms\Components\Placeholder::make('total_preview')
                     ->label('Total (con IVA)')
-                    ->content(function (Get $get, ?Invoice $record): string {
-                        $lines = $get('line_items');
-
-                        if (is_array($lines) && $lines !== []) {
-                            $net = collect($lines)->sum(fn ($row): float => is_array($row) ? (float) ($row['total_price'] ?? 0) : 0);
-                            $vatRate = (float) config('invoices.default_vat_rate', 0.21);
-
-                            return Number::currency(round($net * (1 + $vatRate), 2), 'EUR');
-                        }
-
-                        return Number::currency($record?->grossAmount() ?? 0, 'EUR');
-                    }),
+                    ->content(fn (Get $get, ?Invoice $record): string => Number::currency(
+                        static::lineItemsVatBreakdown($get('line_items'), $record)['gross'],
+                        'EUR',
+                    )),
                 Forms\Components\Checkbox::make('generates_stock_movement')
                     ->label('Genera movimiento de stock')
                     ->default(true)

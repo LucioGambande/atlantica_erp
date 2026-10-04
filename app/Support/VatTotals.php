@@ -31,4 +31,19 @@ class VatTotals
 
         return round($gross / static::factor(), 2);
     }
+
+    /**
+     * @return array{net: float, vat: float, gross: float}
+     */
+    public static function breakdown(float $net): array
+    {
+        $net = max(0.0, round($net, 2));
+        $gross = static::grossFromNet($net);
+
+        return [
+            'net' => $net,
+            'vat' => round($gross - $net, 2),
+            'gross' => $gross,
+        ];
+    }
 }

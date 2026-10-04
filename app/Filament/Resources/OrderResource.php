@@ -136,6 +136,28 @@ class OrderResource extends Resource
         $set('total_price', LineItemTotals::discountedLineTotal($unit, $qty, $disc));
     }
 
+    /**
+     * @param  mixed  $lines
+     * @return array{net: float, vat: float, gross: float}
+     */
+    public static function orderItemsVatBreakdown($lines, ?Order $record): array
+    {
+        if (is_array($lines)) {
+            $net = collect($lines)->sum(fn ($row): float => is_array($row) ? (float) ($row['total_price'] ?? 0) : 0);
+
+            return VatTotals::breakdown($net);
+        }
+
+        if ($record !== null) {
+            $gross = $record->grossAmount();
+            $net = VatTotals::netFromGross($gross);
+
+            return ['net' => $net, 'vat' => round($gross - $net, 2), 'gross' => $gross];
+        }
+
+        return ['net' => 0.0, 'vat' => 0.0, 'gross' => 0.0];
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -163,23 +185,24 @@ class OrderResource extends Resource
                             ->required(fn (?Order $record): bool => $record === null),
                         Forms\Components\Hidden::make('total_amount')
                             ->default(0),
+                        Forms\Components\Placeholder::make('order_subtotal_preview')
+                            ->label('Subtotal (sin IVA)')
+                            ->content(fn (Get $get, ?Order $record): string => Number::currency(
+                                static::orderItemsVatBreakdown($get('orderItems'), $record)['net'],
+                                'EUR',
+                            )),
+                        Forms\Components\Placeholder::make('order_vat_preview')
+                            ->label('IVA')
+                            ->content(fn (Get $get, ?Order $record): string => Number::currency(
+                                static::orderItemsVatBreakdown($get('orderItems'), $record)['vat'],
+                                'EUR',
+                            )),
                         Forms\Components\Placeholder::make('order_total_preview')
                             ->label('Total (con IVA)')
-                            ->content(function (Get $get, ?Order $record): string {
-                                $lines = $get('orderItems') ?? [];
-                                if (! is_array($lines)) {
-                                    return Number::currency($record?->grossAmount() ?? 0, 'EUR');
-                                }
-                                $net = collect($lines)->sum(function ($row) {
-                                    if (! is_array($row)) {
-                                        return 0;
-                                    }
-
-                                    return (float) ($row['total_price'] ?? 0);
-                                });
-
-                                return Number::currency(VatTotals::grossFromNet($net), 'EUR');
-                            }),
+                            ->content(fn (Get $get, ?Order $record): string => Number::currency(
+                                static::orderItemsVatBreakdown($get('orderItems'), $record)['gross'],
+                                'EUR',
+                            )),
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('Líneas del pedido')
