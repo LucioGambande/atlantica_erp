@@ -412,7 +412,7 @@ class AccountStatementService
         $customer->update(['balance' => $runningBalance]);
     }
 
-    protected function registerAdjustment(
+    public function registerAdjustment(
         Customer $customer,
         Model $reference,
         string $description,
