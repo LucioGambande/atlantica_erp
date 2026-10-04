@@ -121,6 +121,84 @@ class CustomerStatement extends Page implements HasForms, HasTable
                             ->send();
                     }
                 }),
+            Actions\Action::make('registerAdjustment')
+                ->label('Registrar ajuste')
+                ->icon('heroicon-o-adjustments-horizontal')
+                ->color('warning')
+                ->visible(fn (): bool => ErpAuthorization::userCan('manage invoices'))
+                ->requiresConfirmation()
+                ->modalHeading('Registrar ajuste manual')
+                ->modalDescription('Para condonaciones, acuerdos comerciales o correcciones puntuales acordadas con el cliente. No usar para corregir errores de cálculo del sistema — esos se arreglan en el origen (factura, pago, etc.).')
+                ->form([
+                    Forms\Components\Select::make('direction')
+                        ->label('Tipo de ajuste')
+                        ->options([
+                            'credit' => 'A favor del cliente (reduce lo que debe)',
+                            'debit' => 'El cliente debe más (aumenta lo que debe)',
+                        ])
+                        ->required()
+                        ->default('credit')
+                        ->native(false),
+                    Forms\Components\TextInput::make('amount')
+                        ->label('Importe')
+                        ->numeric()
+                        ->minValue(0.01)
+                        ->step(0.01)
+                        ->prefix('€')
+                        ->required(),
+                    Forms\Components\Select::make('invoice_id')
+                        ->label('Factura de referencia')
+                        ->helperText('Factura a la que queda asociado el ajuste, a efectos de trazabilidad.')
+                        ->options(fn (): array => $this->getCustomer()->invoices()
+                            ->whereNotNull('issued_at')
+                            ->orderByDesc('issued_at')
+                            ->limit(50)
+                            ->pluck('invoice_number', 'id')
+                            ->all())
+                        ->searchable()
+                        ->required(),
+                    Forms\Components\DateTimePicker::make('date')
+                        ->label('Fecha')
+                        ->default(now())
+                        ->required(),
+                    Forms\Components\Textarea::make('description')
+                        ->label('Motivo')
+                        ->required()
+                        ->minLength(10)
+                        ->helperText('Se guarda tal cual en el libro mayor. Sé específico: a qué acuerdo o situación corresponde.')
+                        ->columnSpanFull(),
+                ])
+                ->action(function (array $data): void {
+                    $invoice = Invoice::query()->find($data['invoice_id']);
+
+                    if ($invoice === null) {
+                        Notification::make()
+                            ->title('No se pudo registrar el ajuste')
+                            ->body('La factura de referencia no existe.')
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    $amount = round((float) $data['amount'], 2);
+
+                    app(AccountStatementService::class)->registerAdjustment(
+                        customer: $this->getCustomer(),
+                        reference: $invoice,
+                        description: $data['description'],
+                        debit: $data['direction'] === 'debit' ? $amount : 0.0,
+                        credit: $data['direction'] === 'credit' ? $amount : 0.0,
+                        date: Carbon::parse($data['date']),
+                    );
+
+                    $this->resetTable();
+
+                    Notification::make()
+                        ->title('Ajuste registrado')
+                        ->success()
+                        ->send();
+                }),
             Actions\Action::make('print')
                 ->label('Imprimir')
                 ->icon('heroicon-o-printer')
