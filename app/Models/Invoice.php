@@ -180,6 +180,16 @@ class Invoice extends Model
     public function grossAmount(): float
     {
         if ($this->isCreditNote()) {
+            $this->loadMissing('invoiceItems');
+
+            $fromItems = round((float) $this->invoiceItems->sum(
+                fn (InvoiceItem $item): float => $item->discounted_total,
+            ), 2);
+
+            if ($fromItems !== 0.0) {
+                return round(abs($fromItems) * (1 + $this->vatRate()), 2);
+            }
+
             return round(abs((float) $this->total_amount), 2);
         }
 

@@ -28,9 +28,11 @@ class InvoiceObserver
 
         $previousStatus = $invoice->getOriginal('status');
 
+        // La cancelación ya queda reflejada en el libro mayor por la nota de
+        // crédito que crea InvoiceService::cancelInvoice() antes de marcar
+        // cancelled_at. Generar acá un ajuste de reversión adicional
+        // duplicaría el crédito.
         if ($invoice->isCancelled() && ! $invoice->isCreditNote()) {
-            $this->accountStatementService->registerInvoiceReversal($invoice);
-
             return;
         }
 
