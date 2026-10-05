@@ -71,7 +71,7 @@ class InvoiceSequenceValidator
     public function minimumIssuedAtForNextInYear(?int $year = null): ?Carbon
     {
         $year ??= (int) now()->format('Y');
-        $prefix = $this->numberGenerator->patternForYear($year);
+        $prefix = $this->numberGenerator->patternForYear(year: $year);
 
         $latest = $this->invoicesWithParsedSequence($prefix, null)
             ->sortByDesc('sequence')

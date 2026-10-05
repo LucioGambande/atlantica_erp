@@ -155,6 +155,7 @@ class InvoiceResource extends Resource
     public static function canPrintInvoice(Invoice $invoice): bool
     {
         return InvoicePrintAuthorization::canPrint()
+            && $invoice->is_fiscal_document
             && in_array($invoice->status, app(InvoicePrintService::class)->printableStatuses(), true);
     }
 
@@ -231,6 +232,24 @@ class InvoiceResource extends Resource
                         );
                     })
                     ->visible(fn (?Invoice $record): bool => $record !== null),
+                Forms\Components\Placeholder::make('fiscal_document_notice')
+                    ->label('Validez fiscal')
+                    ->content(function (Invoice $record): HtmlString|string {
+                        if ($record->consolidated_into_invoice_id !== null) {
+                            $consolidated = $record->consolidatedInto;
+                            $url = static::getUrl('edit', ['record' => $consolidated]);
+
+                            return new HtmlString(
+                                'Documento interno sin validez fiscal propia. Ya quedó incluido en la factura '
+                                .'<a href="'.e($url).'" class="text-primary-600 hover:underline font-medium">'
+                                .e($consolidated->invoice_number).'</a>.'
+                            );
+                        }
+
+                        return 'Documento interno, sin validez fiscal propia. Se va a incluir en la próxima '
+                            .'factura mensual "PARTICULAR" a Consumidor Final.';
+                    })
+                    ->visible(fn (?Invoice $record): bool => $record !== null && ! $record->is_fiscal_document),
                 Forms\Components\TextInput::make('invoice_number')
                     ->label('Número de factura')
                     ->required()

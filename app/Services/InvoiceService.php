@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Order;
 use Illuminate\Database\Eloquent\Builder;
@@ -41,14 +42,23 @@ class InvoiceService
                 throw new RuntimeException('Este pedido ya tiene una factura activa.');
             }
 
+            $isIndividual = $order->customer->customer_type === 'individual';
+
+            // Las ventas a clientes individuales no llevan numeración fiscal
+            // propia: quedan como un registro interno (cuenta corriente y
+            // pagos funcionan igual que con cualquier cliente), y se
+            // agrupan después en la factura mensual "PARTICULAR" a nombre
+            // de Consumidor Final. El stock de estos pedidos ya se movió
+            // (o se mueve) a nivel de pedido, nunca acá.
             $invoice = Invoice::create([
                 'customer_id' => $order->customer_id,
                 'order_id' => $order->id,
-                'invoice_number' => $this->invoiceNumberGenerator->next(),
+                'invoice_number' => $isIndividual ? $this->temporaryInternalNumber() : $this->invoiceNumberGenerator->next(),
                 'document_type' => 'invoice',
+                'is_fiscal_document' => ! $isIndividual,
                 'status' => 'issued',
                 'total_amount' => $order->total_amount,
-                'generates_stock_movement' => $generatesStockMovement,
+                'generates_stock_movement' => $isIndividual ? false : $generatesStockMovement,
                 'issued_at' => Carbon::now(),
             ]);
 
@@ -63,11 +73,15 @@ class InvoiceService
                 ]);
             }
 
+            if ($isIndividual) {
+                $invoice->update(['invoice_number' => $this->internalNumberFor($invoice)]);
+            }
+
             $invoice->recalculateTotalFromItems();
 
             app(AccountStatementService::class)->registerInvoice($invoice->fresh(['invoiceItems', 'customer']));
 
-            if ($generatesStockMovement) {
+            if (! $isIndividual && $generatesStockMovement) {
                 $this->stockService->applyStockFromInvoice($invoice->fresh());
             }
 
@@ -77,6 +91,20 @@ class InvoiceService
 
             return $invoice->load('invoiceItems.product');
         });
+    }
+
+    /**
+     * Número provisorio y único para una venta interna, antes de conocer
+     * su ID definitivo (ver internalNumberFor()).
+     */
+    protected function temporaryInternalNumber(): string
+    {
+        return 'INTERNO-PENDIENTE-'.bin2hex(random_bytes(6));
+    }
+
+    protected function internalNumberFor(Invoice $invoice): string
+    {
+        return 'INTERNO-'.str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT);
     }
 
     public function cancelInvoice(Invoice $invoice): Invoice
@@ -93,8 +121,9 @@ class InvoiceService
                 'customer_id' => $invoice->customer_id,
                 'order_id' => $invoice->order_id,
                 'credited_invoice_id' => $invoice->id,
-                'invoice_number' => $this->invoiceNumberGenerator->next(),
+                'invoice_number' => $invoice->is_fiscal_document ? $this->invoiceNumberGenerator->next() : $this->temporaryInternalNumber(),
                 'document_type' => 'credit_note',
+                'is_fiscal_document' => $invoice->is_fiscal_document,
                 'status' => 'issued',
                 'total_amount' => 0,
                 'generates_stock_movement' => $invoice->generates_stock_movement,
@@ -112,6 +141,10 @@ class InvoiceService
                 ]);
             }
 
+            if (! $creditNote->is_fiscal_document) {
+                $creditNote->update(['invoice_number' => $this->internalNumberFor($creditNote)]);
+            }
+
             $creditNote->recalculateTotalFromItems();
 
             app(AccountStatementService::class)->registerInvoice($creditNote->fresh(['invoiceItems', 'customer']));
@@ -123,6 +156,73 @@ class InvoiceService
             $invoice->update(['cancelled_at' => Carbon::now()]);
 
             return $creditNote->load('invoiceItems.product', 'creditedInvoice');
+        });
+    }
+
+    /**
+     * Agrupa las ventas internas (sin numeración fiscal) hechas a clientes
+     * `individual` en un período, en una única factura real emitida a
+     * "Consumidor Final", con la serie PARTICULAR. No vuelve a mover
+     * stock: ya se movió al nivel de cada pedido.
+     */
+    public function createMonthlyIndividualSummaryInvoice(Customer $consumidorFinal, Carbon $from, Carbon $to): Invoice
+    {
+        return DB::transaction(function () use ($consumidorFinal, $from, $to): Invoice {
+            $internalInvoices = Invoice::query()
+                ->where('is_fiscal_document', false)
+                ->whereNull('cancelled_at')
+                ->whereNull('consolidated_into_invoice_id')
+                ->where('status', '!=', 'draft')
+                ->whereBetween('issued_at', [$from, $to])
+                ->whereHas('customer', fn (Builder $query): Builder => $query->where('customer_type', 'individual'))
+                ->with('invoiceItems', 'customer')
+                ->orderBy('issued_at')
+                ->get();
+
+            if ($internalInvoices->isEmpty()) {
+                throw new RuntimeException('No hay ventas a clientes individuales en ese período para consolidar.');
+            }
+
+            if (! $consumidorFinal->hasBillingDataForInvoicing()) {
+                throw new RuntimeException('El cliente "Consumidor Final" no tiene CUIT/tax ID o dirección fiscal cargados. Completá esos datos antes de generar la factura.');
+            }
+
+            $invoice = Invoice::create([
+                'customer_id' => $consumidorFinal->id,
+                'invoice_number' => $this->invoiceNumberGenerator->next($this->invoiceNumberGenerator->particularPrefix()),
+                'document_type' => 'invoice',
+                'is_fiscal_document' => true,
+                'status' => 'issued',
+                'total_amount' => 0,
+                'generates_stock_movement' => false,
+                'issued_at' => Carbon::now(),
+            ]);
+
+            foreach ($internalInvoices as $internal) {
+                $invoice->invoiceItems()->create([
+                    'product_id' => null,
+                    'description' => sprintf(
+                        'Venta a %s del %s (ref. %s)',
+                        $internal->customer?->name ?? 'cliente individual',
+                        $internal->issued_at?->format('d/m/Y') ?? '—',
+                        $internal->invoice_number,
+                    ),
+                    'quantity' => 1,
+                    'unit_price' => $internal->netAmount(),
+                    'discount_percent' => 0,
+                    'total_price' => $internal->netAmount(),
+                ]);
+            }
+
+            $invoice->recalculateTotalFromItems();
+
+            app(AccountStatementService::class)->registerInvoice($invoice->fresh(['invoiceItems', 'customer']));
+
+            Invoice::query()
+                ->whereIn('id', $internalInvoices->pluck('id'))
+                ->update(['consolidated_into_invoice_id' => $invoice->id]);
+
+            return $invoice->load('invoiceItems', 'consolidatedInvoices');
         });
     }
 
@@ -214,6 +314,10 @@ class InvoiceService
         return Invoice::query()
             ->whereIn('status', ['issued', 'paid'])
             ->whereNull('cancelled_at')
+            // Las ventas internas a clientes individuales (sin numeración
+            // fiscal) no cuentan acá: ya quedan reflejadas, una sola vez,
+            // en la factura PARTICULAR mensual que las agrupa.
+            ->where('is_fiscal_document', true)
             ->when($customerId, fn (Builder $query, int $id): Builder => $query->where('customer_id', $id))
             ->when($customerName, fn (Builder $query, string $name): Builder => $query->whereHas(
                 'customer',

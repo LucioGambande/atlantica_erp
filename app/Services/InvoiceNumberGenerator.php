@@ -12,39 +12,47 @@ class InvoiceNumberGenerator
         return (string) config('invoices.number_prefix', 'HORECA');
     }
 
+    public function particularPrefix(): string
+    {
+        return (string) config('invoices.particular_number_prefix', 'PARTICULAR');
+    }
+
     public function padding(): int
     {
         return max(1, (int) config('invoices.number_padding', 5));
     }
 
-    public function patternForYear(?int $year = null): string
+    public function patternForYear(?string $basePrefix = null, ?int $year = null): string
     {
+        $basePrefix ??= $this->prefix();
         $year ??= (int) now()->format('Y');
 
-        return $this->prefix().$year.'-';
+        return $basePrefix.$year.'-';
     }
 
-    public function preview(?int $year = null): string
+    public function preview(?string $basePrefix = null, ?int $year = null): string
     {
-        return $this->nextSequenceCandidate($year);
+        return $this->nextSequenceCandidate($basePrefix, $year);
     }
 
-    public function next(?int $year = null): string
+    public function next(?string $basePrefix = null, ?int $year = null): string
     {
-        return DB::transaction(function () use ($year): string {
-            $candidate = $this->nextSequenceCandidate($year);
+        $basePrefix ??= $this->prefix();
+
+        return DB::transaction(function () use ($basePrefix, $year): string {
+            $candidate = $this->nextSequenceCandidate($basePrefix, $year);
 
             while (Invoice::query()->where('invoice_number', $candidate)->lockForUpdate()->exists()) {
-                $candidate = $this->incrementCandidate($candidate);
+                $candidate = $this->incrementCandidate($candidate, $basePrefix);
             }
 
             return $candidate;
         });
     }
 
-    protected function nextSequenceCandidate(?int $year = null): string
+    protected function nextSequenceCandidate(?string $basePrefix = null, ?int $year = null): string
     {
-        $prefix = $this->patternForYear($year);
+        $prefix = $this->patternForYear($basePrefix, $year);
 
         $maxSequence = Invoice::query()
             ->where('invoice_number', 'like', $prefix.'%')
@@ -56,13 +64,13 @@ class InvoiceNumberGenerator
         return $prefix.$this->formatSequence($maxSequence + 1);
     }
 
-    protected function incrementCandidate(string $invoiceNumber): string
+    protected function incrementCandidate(string $invoiceNumber, ?string $basePrefix = null): string
     {
         $year = (int) now()->format('Y');
-        $prefix = $this->patternForYear($year);
+        $prefix = $this->patternForYear($basePrefix, $year);
 
         if (! str_starts_with($invoiceNumber, $prefix)) {
-            return $this->nextSequenceCandidate($year);
+            return $this->nextSequenceCandidate($basePrefix, $year);
         }
 
         $sequence = $this->extractSequence($invoiceNumber, $prefix) ?? 0;
@@ -72,14 +80,14 @@ class InvoiceNumberGenerator
 
     public function parse(string $invoiceNumber): ?array
     {
-        foreach ($this->knownPrefixesForNumber($invoiceNumber) as $prefix) {
+        foreach ($this->knownPrefixesForNumber($invoiceNumber) as [$basePrefix, $prefix]) {
             $sequence = $this->extractSequence($invoiceNumber, $prefix);
 
             if ($sequence === null) {
                 continue;
             }
 
-            $year = (int) substr($prefix, strlen($this->prefix()), 4);
+            $year = (int) substr($prefix, strlen($basePrefix), 4);
 
             return [
                 'prefix' => $prefix,
@@ -112,15 +120,19 @@ class InvoiceNumberGenerator
     }
 
     /**
-     * @return array<int, string>
+     * @return array<int, array{0: string, 1: string}> pares [prefijo base, prefijo+año]
      */
     protected function knownPrefixesForNumber(string $invoiceNumber): array
     {
-        if (preg_match('/^('.preg_quote($this->prefix(), '/').'\d{4}-)/', $invoiceNumber, $matches) === 1) {
-            return [$matches[1]];
+        $matches = [];
+
+        foreach ([$this->prefix(), $this->particularPrefix()] as $basePrefix) {
+            if (preg_match('/^('.preg_quote($basePrefix, '/').'\d{4}-)/', $invoiceNumber, $m) === 1) {
+                $matches[] = [$basePrefix, $m[1]];
+            }
         }
 
-        return [];
+        return $matches;
     }
 
     public function compareNumbers(string $left, string $right): int

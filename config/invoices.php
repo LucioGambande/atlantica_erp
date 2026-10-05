@@ -14,6 +14,18 @@ return [
 
     'number_prefix' => env('INVOICE_NUMBER_PREFIX', 'HORECA'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Prefijo de la serie "Consumidor Final"
+    |--------------------------------------------------------------------------
+    |
+    | Serie separada e independiente de number_prefix, usada solo por la
+    | factura mensual que agrupa las ventas a clientes individuales.
+    |
+    */
+
+    'particular_number_prefix' => env('INVOICE_PARTICULAR_NUMBER_PREFIX', 'PARTICULAR'),
+
     'number_padding' => (int) env('INVOICE_NUMBER_PADDING', 5),
 
     'default_vat_rate' => (float) env('INVOICE_DEFAULT_VAT_RATE', 0.21),

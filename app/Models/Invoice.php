@@ -27,9 +27,11 @@ class Invoice extends Model
         'customer_id',
         'order_id',
         'credited_invoice_id',
+        'consolidated_into_invoice_id',
         'invoice_number',
         'legacy_invoice_number',
         'document_type',
+        'is_fiscal_document',
         'status',
         'total_amount',
         'generates_stock_movement',
@@ -42,6 +44,7 @@ class Invoice extends Model
     {
         return [
             'total_amount' => 'decimal:2',
+            'is_fiscal_document' => 'boolean',
             'generates_stock_movement' => 'boolean',
             'stock_movements_recorded' => 'boolean',
             'issued_at' => 'datetime',
@@ -111,6 +114,24 @@ class Invoice extends Model
         return $this->hasMany(self::class, 'credited_invoice_id');
     }
 
+    /**
+     * Factura "PARTICULAR" mensual que incluyó esta venta interna a un
+     * cliente individual (ver InvoiceService::createMonthlyIndividualSummaryInvoice()).
+     */
+    public function consolidatedInto(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'consolidated_into_invoice_id');
+    }
+
+    /**
+     * Ventas internas a clientes individuales agrupadas en esta factura
+     * "PARTICULAR" mensual.
+     */
+    public function consolidatedInvoices(): HasMany
+    {
+        return $this->hasMany(self::class, 'consolidated_into_invoice_id');
+    }
+
     public function invoiceItems(): HasMany
     {
         return $this->hasMany(InvoiceItem::class);
@@ -135,7 +156,8 @@ class Invoice extends Model
     {
         return $this->document_type === 'invoice'
             && ! $this->isCancelled()
-            && $this->status !== 'draft';
+            && $this->status !== 'draft'
+            && $this->consolidated_into_invoice_id === null;
     }
 
     public function canBeInvoicedFromOrder(): bool
