@@ -9,6 +9,7 @@ use App\Filament\Resources\InvoiceResource\RelationManagers;
 use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Services\InvoiceNumberGenerator;
 use App\Services\InvoicePrintService;
@@ -94,6 +95,81 @@ class InvoiceResource extends Resource
         } catch (RuntimeException $exception) {
             Notification::make()
                 ->title('No se pudo cancelar la factura')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    /**
+     * @return array<int, Forms\Components\Component>
+     */
+    public static function partialCreditFormSchema(Invoice $invoice): array
+    {
+        $invoice->loadMissing('invoiceItems.product', 'invoiceItems.creditNoteItems');
+
+        $items = $invoice->invoiceItems
+            ->filter(fn (InvoiceItem $item): bool => $item->remainingReturnableQuantity() > 0)
+            ->map(fn (InvoiceItem $item): array => [
+                'invoice_item_id' => $item->id,
+                'label' => ($item->product?->name ?? $item->description)
+                    ." (facturado {$item->quantity}, ya devuelto {$item->returnedQuantity()}, disponible {$item->remainingReturnableQuantity()})",
+                'remaining' => $item->remainingReturnableQuantity(),
+                'quantity' => 0,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            Forms\Components\Repeater::make('items')
+                ->label('')
+                ->default($items)
+                ->addable(false)
+                ->deletable(false)
+                ->reorderable(false)
+                ->columns(3)
+                ->schema([
+                    Forms\Components\Hidden::make('invoice_item_id'),
+                    Forms\Components\Hidden::make('remaining'),
+                    Forms\Components\Hidden::make('label'),
+                    Forms\Components\Placeholder::make('label_display')
+                        ->label('Producto')
+                        ->content(fn (Get $get): string => (string) $get('label'))
+                        ->columnSpan(2),
+                    Forms\Components\TextInput::make('quantity')
+                        ->label('Cant. a devolver')
+                        ->numeric()
+                        ->integer()
+                        ->default(0)
+                        ->minValue(0)
+                        ->maxValue(fn (Get $get): int => (int) $get('remaining'))
+                        ->columnSpan(1),
+                ]),
+        ];
+    }
+
+    public static function partialCreditNote(Invoice $invoice, array $data): void
+    {
+        $lines = collect($data['items'] ?? [])
+            ->map(fn (array $row): array => [
+                'invoice_item_id' => (int) ($row['invoice_item_id'] ?? 0),
+                'quantity' => (int) ($row['quantity'] ?? 0),
+            ])
+            ->filter(fn (array $row): bool => $row['quantity'] > 0)
+            ->values()
+            ->all();
+
+        try {
+            $creditNote = app(InvoiceService::class)->createPartialCreditNote($invoice, $lines);
+
+            Notification::make()
+                ->title('Devolución registrada')
+                ->body("Nota de crédito {$creditNote->invoice_number} creada.")
+                ->success()
+                ->send();
+        } catch (RuntimeException $exception) {
+            Notification::make()
+                ->title('No se pudo generar la devolución')
                 ->body($exception->getMessage())
                 ->danger()
                 ->send();
@@ -561,6 +637,16 @@ class InvoiceResource extends Resource
                     ->visible(fn (Invoice $record): bool => InvoicePrintAuthorization::canManage() && $record->canRegisterPayment())
                     ->form(fn (Invoice $record): array => static::markAsPaidFormSchema($record))
                     ->action(fn (Invoice $record, array $data) => static::registerInvoicePayment($record, $data)),
+                Tables\Actions\Action::make('partialCreditNote')
+                    ->label('Devolución')
+                    ->icon('heroicon-o-receipt-refund')
+                    ->color('warning')
+                    ->modalHeading('Registrar devolución')
+                    ->modalDescription('Indicá cuántas unidades de cada línea devuelve el cliente. Se va a crear una nota de crédito solo por esas cantidades; la factura original sigue vigente.')
+                    ->modalSubmitActionLabel('Generar nota de crédito')
+                    ->visible(fn (Invoice $record): bool => InvoicePrintAuthorization::canManage() && $record->canBeCredited())
+                    ->form(fn (Invoice $record): array => static::partialCreditFormSchema($record))
+                    ->action(fn (Invoice $record, array $data) => static::partialCreditNote($record, $data)),
                 Tables\Actions\Action::make('cancelInvoice')
                     ->label('Cancelar factura')
                     ->icon('heroicon-o-x-circle')

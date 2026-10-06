@@ -41,6 +41,19 @@ class EditInvoice extends EditRecord
                 ->visible(fn (): bool => InvoicePrintAuthorization::canManage() && $this->getRecord()->canRegisterPayment())
                 ->form(fn (): array => InvoiceResource::markAsPaidFormSchema($this->getRecord()))
                 ->action(fn (array $data) => InvoiceResource::registerInvoicePayment($this->getRecord(), $data)),
+            Actions\Action::make('partialCreditNote')
+                ->label('Devolución')
+                ->icon('heroicon-o-receipt-refund')
+                ->color('warning')
+                ->modalHeading('Registrar devolución')
+                ->modalDescription('Indicá cuántas unidades de cada línea devuelve el cliente. Se va a crear una nota de crédito solo por esas cantidades; la factura original sigue vigente.')
+                ->modalSubmitActionLabel('Generar nota de crédito')
+                ->visible(fn (): bool => InvoicePrintAuthorization::canManage() && $this->getRecord()->canBeCredited())
+                ->form(fn (): array => InvoiceResource::partialCreditFormSchema($this->getRecord()))
+                ->action(function (array $data): void {
+                    InvoiceResource::partialCreditNote($this->getRecord(), $data);
+                    $this->redirect(InvoiceResource::getUrl('edit', ['record' => $this->getRecord()]));
+                }),
             Actions\Action::make('cancelInvoice')
                 ->label('Cancelar factura')
                 ->icon('heroicon-o-x-circle')

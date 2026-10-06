@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Order;
+use App\Support\LineItemTotals;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -154,6 +156,105 @@ class InvoiceService
             }
 
             $invoice->update(['cancelled_at' => Carbon::now()]);
+
+            return $creditNote->load('invoiceItems.product', 'creditedInvoice');
+        });
+    }
+
+    /**
+     * Crea una nota de crédito por devolución parcial (o total, si se
+     * indican todas las cantidades disponibles) de una factura. A
+     * diferencia de cancelInvoice(), la factura original no queda
+     * cancelada: sigue vigente por lo que no se devolvió.
+     *
+     * @param  list<array{invoice_item_id: int, quantity: int}>  $lines
+     */
+    public function createPartialCreditNote(Invoice $invoice, array $lines): Invoice
+    {
+        return DB::transaction(function () use ($invoice, $lines): Invoice {
+            $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $invoice->loadMissing('invoiceItems.product', 'invoiceItems.creditNoteItems');
+
+            if (! $invoice->canBeCredited()) {
+                throw new RuntimeException('Esta factura no admite devoluciones.');
+            }
+
+            $itemsById = $invoice->invoiceItems->keyBy('id');
+            $toCredit = [];
+
+            foreach ($lines as $line) {
+                $item = $itemsById->get((int) ($line['invoice_item_id'] ?? 0));
+                $quantity = (int) ($line['quantity'] ?? 0);
+
+                if ($item === null || $quantity <= 0) {
+                    continue;
+                }
+
+                $available = $item->remainingReturnableQuantity();
+
+                if ($quantity > $available) {
+                    throw new RuntimeException(
+                        "No podés devolver {$quantity} u. de \"{$item->description}\": solo quedan {$available} disponibles."
+                    );
+                }
+
+                $toCredit[] = ['item' => $item, 'quantity' => $quantity];
+            }
+
+            if ($toCredit === []) {
+                throw new RuntimeException('Indicá al menos una cantidad a devolver.');
+            }
+
+            $creditNote = Invoice::create([
+                'customer_id' => $invoice->customer_id,
+                'order_id' => $invoice->order_id,
+                'credited_invoice_id' => $invoice->id,
+                'invoice_number' => $invoice->is_fiscal_document ? $this->invoiceNumberGenerator->next() : $this->temporaryInternalNumber(),
+                'document_type' => 'credit_note',
+                'is_fiscal_document' => $invoice->is_fiscal_document,
+                'status' => 'issued',
+                'total_amount' => 0,
+                'generates_stock_movement' => $invoice->generates_stock_movement,
+                'issued_at' => Carbon::now(),
+            ]);
+
+            foreach ($toCredit as $entry) {
+                /** @var InvoiceItem $item */
+                $item = $entry['item'];
+                $quantity = $entry['quantity'];
+                $unitPrice = -1 * abs((float) $item->unit_price);
+
+                $creditNote->invoiceItems()->create([
+                    'credited_invoice_item_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'description' => $item->description,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'discount_percent' => $item->discount_percent,
+                    'total_price' => LineItemTotals::discountedLineTotal($unitPrice, $quantity, (float) $item->discount_percent),
+                ]);
+            }
+
+            if (! $creditNote->is_fiscal_document) {
+                $creditNote->update(['invoice_number' => $this->internalNumberFor($creditNote)]);
+            }
+
+            // Invoice::create() dispara el observer, que ya cacheó la
+            // relación "invoiceItems" vacía (todavía no existían las
+            // líneas). Forzamos un reload antes de recalcular para no
+            // guardar total_amount = 0.
+            $creditNote->load('invoiceItems');
+            $creditNote->recalculateTotalFromItems();
+
+            app(AccountStatementService::class)->registerInvoice($creditNote->fresh(['invoiceItems', 'customer']));
+
+            if ($invoice->stock_movements_recorded && $invoice->generates_stock_movement) {
+                $this->stockService->recordMovementsForInvoice(
+                    $creditNote->fresh(['invoiceItems.product']),
+                    enforceStockAvailability: false,
+                );
+                $creditNote->update(['stock_movements_recorded' => true]);
+            }
 
             return $creditNote->load('invoiceItems.product', 'creditedInvoice');
         });

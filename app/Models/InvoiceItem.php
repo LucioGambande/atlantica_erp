@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InvoiceItem extends Model
 {
@@ -14,6 +15,7 @@ class InvoiceItem extends Model
 
     protected $fillable = [
         'invoice_id',
+        'credited_invoice_item_id',
         'legacy_line_id',
         'product_id',
         'description',
@@ -50,5 +52,33 @@ class InvoiceItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Línea original de la factura que esta línea (de una nota de
+     * crédito) devuelve, si corresponde.
+     */
+    public function creditedItem(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'credited_invoice_item_id');
+    }
+
+    /**
+     * Líneas de notas de crédito que devolvieron (total o parcialmente)
+     * esta línea de factura.
+     */
+    public function creditNoteItems(): HasMany
+    {
+        return $this->hasMany(self::class, 'credited_invoice_item_id');
+    }
+
+    public function returnedQuantity(): int
+    {
+        return (int) $this->creditNoteItems->sum('quantity');
+    }
+
+    public function remainingReturnableQuantity(): int
+    {
+        return max(0, (int) $this->quantity - $this->returnedQuantity());
     }
 }

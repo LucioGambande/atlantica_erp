@@ -157,7 +157,26 @@ class Invoice extends Model
         return $this->document_type === 'invoice'
             && ! $this->isCancelled()
             && $this->status !== 'draft'
-            && $this->consolidated_into_invoice_id === null;
+            && $this->consolidated_into_invoice_id === null
+            && ! $this->creditNotes()->exists();
+    }
+
+    public function canBeCredited(): bool
+    {
+        if (
+            $this->document_type !== 'invoice'
+            || $this->isCancelled()
+            || $this->consolidated_into_invoice_id !== null
+            || ! in_array($this->status, ['issued', 'paid'], true)
+        ) {
+            return false;
+        }
+
+        $this->loadMissing('invoiceItems.creditNoteItems');
+
+        return $this->invoiceItems->contains(
+            fn (InvoiceItem $item): bool => $item->remainingReturnableQuantity() > 0,
+        );
     }
 
     public function canBeInvoicedFromOrder(): bool
