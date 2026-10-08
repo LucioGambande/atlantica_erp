@@ -30,7 +30,13 @@ class InvoiceService
                 throw new RuntimeException('No se puede facturar un pedido sin líneas.');
             }
 
-            if (! $order->customer?->hasBillingDataForInvoicing()) {
+            $isIndividual = $order->customer?->customer_type === 'individual';
+
+            // Las ventas a clientes individuales no requieren CUIT/dirección
+            // fiscal propios: la factura resultante es un registro interno,
+            // sin numeración fiscal, y los datos fiscales que se declaran a
+            // Hacienda son los de "Consumidor Final" en la factura mensual.
+            if (! $isIndividual && ! $order->customer?->hasBillingDataForInvoicing()) {
                 throw new RuntimeException('El cliente no tiene CUIT/tax ID o dirección fiscal cargados. Completá esos datos antes de facturar.');
             }
 
@@ -43,8 +49,6 @@ class InvoiceService
             if ($existingInvoice !== null) {
                 throw new RuntimeException('Este pedido ya tiene una factura activa.');
             }
-
-            $isIndividual = $order->customer->customer_type === 'individual';
 
             // Las ventas a clientes individuales no llevan numeración fiscal
             // propia: quedan como un registro interno (cuenta corriente y
