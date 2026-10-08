@@ -231,7 +231,6 @@ class InvoiceResource extends Resource
     public static function canPrintInvoice(Invoice $invoice): bool
     {
         return InvoicePrintAuthorization::canPrint()
-            && $invoice->is_fiscal_document
             && in_array($invoice->status, app(InvoicePrintService::class)->printableStatuses(), true);
     }
 

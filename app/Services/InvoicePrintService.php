@@ -162,7 +162,11 @@ class InvoicePrintService
 
         return [
             'invoice' => $invoice,
-            'title' => $isCreditNote ? 'NOTA DE CRÉDITO '.$invoice->invoice_number : 'FACTURA '.$invoice->invoice_number,
+            'title' => match (true) {
+                $isCreditNote => 'NOTA DE CRÉDITO '.$invoice->invoice_number,
+                ! $invoice->is_fiscal_document => 'COMPROBANTE INTERNO '.$invoice->invoice_number,
+                default => 'FACTURA '.$invoice->invoice_number,
+            },
             'invoice_number' => $invoice->invoice_number,
             'issued_at' => $issuedAt,
             'due_at' => $issuedAt->copy()->addDays($paymentTermsDays),
