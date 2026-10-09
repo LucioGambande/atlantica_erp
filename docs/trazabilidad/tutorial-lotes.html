@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Trazabilidad por lotes — Atlántica Terranova</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 10.5pt; line-height: 1.5; color: #1a1a1a; margin: 0 auto; max-width: 185mm; padding: 6mm;
+  }
+  h1 { font-size: 20pt; margin: 0 0 4px; letter-spacing: -0.3px; }
+  h2 {
+    font-size: 13pt; margin: 24px 0 10px; padding-bottom: 5px;
+    border-bottom: 2px solid #1a1a1a; page-break-after: avoid;
+  }
+  h3 { font-size: 11pt; margin: 16px 0 6px; page-break-after: avoid; }
+  p { margin: 0 0 9px; }
+  .subtitulo { font-size: 12pt; color: #555; margin-bottom: 20px; }
+  .meta { font-size: 9pt; color: #666; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 4px; }
+  .destacado {
+    background: #f5f5f5; border-left: 3px solid #1a1a1a;
+    padding: 10px 14px; margin: 14px 0; page-break-inside: avoid;
+  }
+  .nota { font-size: 9.5pt; color: #444; background: #fafafa; border: 1px solid #e0e0e0; padding: 9px 12px; margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 9.5pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; font-weight: 700; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9.5pt; background: #f0f0f0; padding: 1px 4px; border-radius: 2px; }
+  .ruta { font-size: 9.5pt; color: #444; margin: 0 0 10px; }
+  figure { margin: 14px 0 18px; page-break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #bbb; display: block; }
+  figcaption {
+    font-size: 8.5pt; color: #555; margin-top: 5px; padding-left: 2px;
+    border-left: 3px solid #1a1a1a; padding: 3px 0 3px 8px;
+  }
+  figcaption strong { color: #1a1a1a; }
+  .circuito { display: flex; align-items: stretch; margin: 16px 0; page-break-inside: avoid; }
+  .circuito .caja {
+    flex: 1; border: 1.5px solid #1a1a1a; padding: 8px 6px; text-align: center;
+    font-size: 8.5pt; line-height: 1.3;
+  }
+  .circuito .caja strong { display: block; font-size: 9pt; margin-bottom: 2px; }
+  .circuito .flecha { align-self: center; padding: 0 5px; font-size: 13pt; }
+  .salto { page-break-before: always; }
+  ul.limpia { margin: 6px 0 10px; padding-left: 20px; }
+  ul.limpia li { margin-bottom: 4px; }
+  footer { margin-top: 26px; border-top: 1px solid #ddd; padding-top: 8px; font-size: 8.5pt; color: #777; }
+</style>
+</head>
+<body>
+
+<h1>Trazabilidad por lotes</h1>
+<div class="subtitulo">Identificación y seguimiento del producto en todas las fases de la distribución</div>
+<div class="meta">
+  <strong>Atlántica Terranova 1908, S.L.</strong> — N.I.F. B22978712<br>
+  Sistema de gestión: ERP propio (módulos de compras, almacén y facturación)<br>
+  Documento preparado para su presentación ante la autoridad sanitaria · Octubre de 2026
+</div>
+
+<h2>1. Objeto del documento</h2>
+<p>
+  Este documento describe cómo el sistema de gestión de Atlántica Terranova registra y conserva
+  el <strong>número de lote</strong> de cada producto a lo largo de todo su recorrido: desde la
+  recepción de la mercancía del proveedor hasta la entrega al cliente final.
+</p>
+<p>
+  El objetivo es acreditar que, ante cualquier incidencia sanitaria, la empresa puede identificar
+  de forma inmediata:
+</p>
+<ul class="limpia">
+  <li><strong>De dónde procede un lote</strong> — proveedor, documento de compra y fecha de recepción.</li>
+  <li><strong>A quién se ha entregado</strong> — clientes, cantidades, albaranes y facturas.</li>
+  <li><strong>Qué cantidad permanece en almacén</strong> — unidades no distribuidas de ese lote.</li>
+</ul>
+<div class="destacado">
+  Esta información es la exigida por el artículo 18 del Reglamento (CE) 178/2002 para la
+  trazabilidad «un paso atrás, un paso adelante». El sistema la registra automáticamente en cada
+  operación, sin depender de anotaciones manuales paralelas.
+</div>
+
+<h2>2. Circuito completo del lote</h2>
+<div class="circuito">
+  <div class="caja"><strong>1. Compra</strong>Se asigna el lote a cada línea de la factura del proveedor</div>
+  <div class="flecha">&rarr;</div>
+  <div class="caja"><strong>2. Recepción</strong>La mercancía entra en stock identificada por lote</div>
+  <div class="flecha">&rarr;</div>
+  <div class="caja"><strong>3. Pedido</strong>Se selecciona de qué lote se sirve</div>
+  <div class="flecha">&rarr;</div>
+  <div class="caja"><strong>4. Entrega</strong>El lote se imprime en albarán y factura</div>
+  <div class="flecha">&rarr;</div>
+  <div class="caja"><strong>5. Consulta</strong>Búsqueda por lote en cualquier momento</div>
+</div>
+<p>
+  En cada uno de estos cinco pasos el lote queda grabado en la base de datos como un dato
+  estructurado, no como un texto libre: el sistema impide que dos lotes distintos del mismo
+  producto compartan código, y conserva el vínculo aunque el documento se modifique o se anule.
+</p>
+
+<h3>Caso real utilizado en este documento</h3>
+<table>
+  <tr><th style="width:34%">Producto</th><td>Bonito del Norte en aceite de oliva · lata 250 g (ref. BON-250)</td></tr>
+  <tr><th>Lote analizado</th><td><code>L-2026-0147</code> — fabricado el 12/08/2026</td></tr>
+  <tr><th>Proveedor</th><td>Conservas del Cantábrico, S.L. — N.I.F. B39284710</td></tr>
+  <tr><th>Entrada</th><td>240 unidades · factura de compra <code>DEMO-FC-2026-0458</code> · recibida el 15/09/2026</td></tr>
+  <tr><th>Salidas</th><td>168 unidades en 4 entregas, repartidas entre 2 clientes</td></tr>
+  <tr><th>Saldo en almacén</th><td><strong>72 unidades</strong></td></tr>
+</table>
+<p class="nota">
+  Para demostrar que el sistema <em>distingue</em> lotes y no los agrupa, el caso incluye un
+  segundo lote del mismo producto, <code>L-2026-0151</code> (fabricado el 03/09/2026), con sus
+  propias entradas y salidas: 180 unidades recibidas, 48 entregadas y 132 en almacén. Las
+  consultas de los apartados 7 y 8 muestran que el sistema separa correctamente uno de otro.
+</p>
+
+<h2>3. Catálogo de lotes</h2>
+<p>
+  El sistema mantiene un registro central de lotes. Cada lote pertenece a un producto concreto y
+  su código es único dentro de ese producto, de modo que un error de transcripción no puede
+  generar un lote duplicado o fantasma.
+</p>
+<p>
+  El catálogo muestra, para cada lote, las <strong>unidades que permanecen en almacén</strong> y
+  el número de documentos de compra y de venta en los que ha intervenido. El saldo no es un
+  contador independiente: se calcula en cada consulta a partir del registro de movimientos de
+  almacén, por lo que no puede desincronizarse del historial documental.
+</p>
+<figure>
+  <img src="capturas/01-catalogo-lotes.png" alt="Catálogo de lotes">
+  <figcaption>
+    <strong>Capt. 1 — Catálogo de lotes.</strong> Los dos lotes del producto, con su fecha de
+    fabricación, las unidades en almacén (72 y 132) y el número de documentos de compra y venta
+    en los que intervienen. El mismo producto con dos lotes vivos y trazados por separado.
+  </figcaption>
+</figure>
+
+<h2>4. Paso 1 — Asignación del lote en la recepción de mercancía</h2>
+<p>
+  El lote se introduce al registrar la factura del proveedor, línea a línea. El desplegable solo
+  ofrece lotes del producto seleccionado en esa misma línea, junto con su fecha de fabricación, y
+  permite dar de alta un lote nuevo sin abandonar el formulario.
+</p>
+<figure>
+  <img src="capturas/02-selector-lote-compra.png" alt="Selección de lote en una línea de compra">
+  <figcaption>
+    <strong>Capt. 2 — Asignación del lote en la línea de compra.</strong> El desplegable muestra
+    únicamente los lotes existentes de ese producto, identificados por código y fecha de
+    fabricación. El botón «+» da de alta un lote nuevo en el acto.
+  </figcaption>
+</figure>
+<figure>
+  <img src="capturas/03-compra-lineas-lote.png" alt="Factura de compra con líneas y lote">
+  <figcaption>
+    <strong>Capt. 3 — Factura de compra con su línea identificada.</strong> La tabla «Líneas de
+    compra» recoge el lote <code>L-2026-0147</code> junto a la cantidad recibida. En la cabecera,
+    el interruptor «Suma stock al recibirla» permite excluir del almacén las compras que no son
+    mercancía (portes, servicios, gastos).
+  </figcaption>
+</figure>
+
+<h2>5. Paso 2 — La entrada en almacén queda identificada por lote</h2>
+<p>
+  Al marcar la factura de compra como <strong>Recibida</strong>, el sistema da entrada automática
+  a la mercancía y genera un movimiento de almacén por cada línea, <strong>conservando el
+  lote</strong>. A partir de ese momento las líneas quedan bloqueadas: no se pueden alterar
+  cantidades ni lotes sin revertir previamente la recepción, lo que impide que el registro de
+  almacén quede sin respaldo documental.
+</p>
+<figure>
+  <img src="capturas/04-movimientos-almacen.png" alt="Movimientos de almacén con lote">
+  <figcaption>
+    <strong>Capt. 4 — Registro de movimientos de almacén.</strong> Cada entrada y cada salida
+    lleva su lote asociado: las entradas de 240 y 180 unidades de los dos lotes, y las salidas
+    correspondientes a las entregas. Ninguna operación de mercancía queda sin identificar.
+  </figcaption>
+</figure>
+
+<div class="salto"></div>
+<h2>6. Pasos 3 y 4 — El lote acompaña a la salida</h2>
+<p>
+  Al preparar un pedido se indica de qué lote concreto se sirve cada línea. Ese dato se traslada
+  automáticamente al albarán de entrega y a la factura, y se conserva igualmente en las
+  devoluciones: una factura rectificativa hereda el lote de la línea original.
+</p>
+<figure>
+  <img src="capturas/05-alta-lote-pedido.png" alt="Alta de lote desde el pedido">
+  <figcaption>
+    <strong>Capt. 5 — Alta de lote durante la preparación del pedido.</strong> El mismo control
+    está disponible en la salida: código de lote y fecha de fabricación. El sistema rechaza un
+    código ya existente para ese producto, de modo que no pueden coexistir dos lotes homónimos.
+  </figcaption>
+</figure>
+<figure>
+  <img src="capturas/06-pedido-linea-lote.png" alt="Línea de pedido con lote seleccionado">
+  <figcaption>
+    <strong>Capt. 6 — Línea de pedido con su lote.</strong> La expedición queda vinculada al lote
+    <code>L-2026-0151</code> y a la cantidad servida. Este es el dato que viaja al albarán y a la
+    factura del cliente.
+  </figcaption>
+</figure>
+<div class="destacado">
+  <strong>Documentos acreditativos adjuntos.</strong> Junto a este documento se acompañan dos
+  documentos reales generados por el sistema, en los que figura impresa la columna «Lote»:
+  <code>factura-con-lote.pdf</code> y <code>albaran-con-lote.pdf</code>, correspondientes a una
+  misma expedición. Son los mismos documentos que recibe el cliente, de modo que el lote viaja
+  físicamente con la mercancía.
+</div>
+
+<h2>7. Consulta hacia adelante — ¿a quién se ha entregado el lote?</h2>
+<p>
+  Es la consulta crítica ante una alerta sanitaria. El listado de facturas incorpora un filtro
+  <strong>Lote</strong> que devuelve, de forma inmediata, todas las facturas y todos los clientes
+  que han recibido producto de ese lote concreto.
+</p>
+<figure>
+  <img src="capturas/07-facturas-filtro-lote.png" alt="Listado de facturas con filtro por lote">
+  <figcaption>
+    <strong>Capt. 7 — El filtro «Lote» en el listado de facturas.</strong> Encabeza el resto de
+    criterios de búsqueda (estado, tipo, fechas). Al seleccionar un lote, el listado se reduce a
+    las facturas que lo contienen: 4 para <code>L-2026-0147</code> y 2 para
+    <code>L-2026-0151</code>, el mismo recuento que refleja la columna «Líneas de venta» del
+    catálogo (capt. 1).
+  </figcaption>
+</figure>
+
+<h2>8. Consulta hacia atrás — ¿de dónde procede el lote?</h2>
+<p>
+  El mismo filtro existe en el listado de facturas de compra, lo que permite identificar al
+  proveedor y el documento de entrada de cualquier lote presente en almacén o ya distribuido.
+</p>
+<figure>
+  <img src="capturas/08-compras-filtro-lote.png" alt="Listado de compras con filtro por lote">
+  <figcaption>
+    <strong>Capt. 8 — Origen documental del lote.</strong> El listado de compras ofrece el mismo
+    filtro, desplegado aquí con los dos lotes disponibles. Seleccionando <code>L-2026-0147</code>
+    queda identificada su factura de entrada, <code>DEMO-FC-2026-0458</code>, con el proveedor y
+    la fecha de recepción. Se aprecia también el estado de cada compra: las recibidas ya han
+    movido stock; la que está en borrador, todavía no.
+  </figcaption>
+</figure>
+
+<h2>9. Registro histórico del lote en almacén</h2>
+<p>
+  Todos los movimientos de entrada y salida quedan registrados de forma permanente y asociados a
+  su lote. El historial es acumulativo: las correcciones no borran movimientos, sino que generan
+  movimientos compensatorios, de forma que el registro refleja siempre lo que realmente ocurrió.
+</p>
+<figure>
+  <img src="capturas/09-historial-lote.png" alt="Historial completo del lote">
+  <figcaption>
+    <strong>Capt. 9 — Historial completo del lote <code>L-2026-0147</code>.</strong> Con el filtro
+    aplicado: la entrada de 240 unidades y las 4 salidas (48, 36, 48 y 36) que suman las 168
+    entregadas. La diferencia, 72 unidades, es el saldo que figura en el catálogo (capt. 1).
+  </figcaption>
+</figure>
+<table>
+  <tr><th colspan="4">Recorrido completo del lote L-2026-0147</th></tr>
+  <tr><th>Movimiento</th><th>Documento</th><th>Contraparte</th><th>Unidades</th></tr>
+  <tr><td>Entrada</td><td>DEMO-FC-2026-0458</td><td>Conservas del Cantábrico, S.L.</td><td>+240</td></tr>
+  <tr><td>Salida</td><td>HORECA2026-00001</td><td>Restaurante La Rula, S.L.</td><td>−48</td></tr>
+  <tr><td>Salida</td><td>HORECA2026-00002</td><td>Hotel Mar de Leva, S.A.</td><td>−36</td></tr>
+  <tr><td>Salida</td><td>HORECA2026-00004</td><td>Restaurante La Rula, S.L.</td><td>−48</td></tr>
+  <tr><td>Salida</td><td>HORECA2026-00005</td><td>Hotel Mar de Leva, S.A.</td><td>−36</td></tr>
+  <tr><td colspan="3"><strong>Saldo en almacén</strong></td><td><strong>72</strong></td></tr>
+</table>
+
+<h2>10. Alcance actual y evolución prevista</h2>
+<p>Para que la exposición sea precisa, se detalla qué está operativo y qué está previsto incorporar:</p>
+<table>
+  <tr><th style="width:66%">Capacidad</th><th>Estado</th></tr>
+  <tr><td>Registro del lote en la entrada de mercancía (factura de compra)</td><td>Operativo</td></tr>
+  <tr><td>Entrada automática en almacén identificada por lote</td><td>Operativo</td></tr>
+  <tr><td>Registro del lote en pedido, albarán y factura de venta</td><td>Operativo</td></tr>
+  <tr><td>Impresión del lote en los documentos entregados al cliente</td><td>Operativo</td></tr>
+  <tr><td>Conservación del lote en devoluciones y facturas rectificativas</td><td>Operativo</td></tr>
+  <tr><td>Consulta «a quién se entregó el lote X» (hacia adelante)</td><td>Operativo</td></tr>
+  <tr><td>Consulta «de qué proveedor procede el lote X» (hacia atrás)</td><td>Operativo</td></tr>
+  <tr><td>Saldo por lote consultable en pantalla (unidades en almacén)</td><td>Operativo</td></tr>
+  <tr><td>Historial permanente de movimientos por lote</td><td>Operativo</td></tr>
+  <tr><td>Aviso automático al servir un lote agotado</td><td>Previsto</td></tr>
+  <tr><td>Control de fecha de caducidad y alertas de vencimiento</td><td>Previsto — el sistema ya registra la fecha de fabricación</td></tr>
+</table>
+<p class="nota">
+  Las dos capacidades marcadas como «previstas» no afectan a la trazabilidad exigible: son
+  automatismos de aviso sobre información que el sistema ya registra y conserva íntegramente. El
+  circuito de identificación de origen y destino de cada lote, así como el saldo en almacén, está
+  operativo en su totalidad.
+</p>
+
+<footer>
+  Atlántica Terranova 1908, S.L. · Documento de acreditación de trazabilidad por lotes · Octubre de 2026<br>
+  Las capturas corresponden al sistema en funcionamiento. Los datos de proveedor y clientes de los
+  ejemplos pertenecen a un escenario de demostración preparado para ilustrar el circuito completo.
+</footer>
+
+</body>
+</html>
