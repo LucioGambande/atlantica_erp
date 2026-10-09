@@ -33,7 +33,7 @@ class OrderPrintService
     public function findForPrint(int $orderId): Order
     {
         return Order::query()
-            ->with(['customer', 'orderItems.product'])
+            ->with(['customer', 'orderItems.product', 'orderItems.lot'])
             ->whereIn('status', $this->printableStatuses())
             ->findOrFail($orderId);
     }
@@ -54,6 +54,7 @@ class OrderPrintService
 
         $lines = $order->orderItems->map(fn ($item): array => [
             'description' => $item->product?->name ?? 'Línea',
+            'lot' => $item->lot?->code,
             'quantity' => (int) $item->quantity,
             'unit_price' => round((float) $item->unit_price, 2),
             'vat_rate' => $vatRate,
@@ -72,6 +73,7 @@ class OrderPrintService
             'with_prices' => $withPrices,
             'ordered_at' => Carbon::parse($order->ordered_at ?? $order->created_at),
             'issuer' => $issuer,
+            'iban' => $issuer['iban'] ?? null,
             'customer' => [
                 'name' => $customer?->name ?? '—',
                 'address' => $customer?->address,

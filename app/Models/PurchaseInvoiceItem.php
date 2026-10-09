@@ -13,6 +13,7 @@ class PurchaseInvoiceItem extends Model
     protected $fillable = [
         'purchase_invoice_id',
         'product_id',
+        'lot_id',
         'description',
         'quantity',
         'unit_price',
@@ -36,5 +37,10 @@ class PurchaseInvoiceItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function lot(): BelongsTo
+    {
+        return $this->belongsTo(Lot::class);
     }
 }

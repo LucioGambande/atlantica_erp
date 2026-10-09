@@ -56,6 +56,10 @@
         font-size: 10px;
         font-weight: 700;
     }
+    .lot {
+        white-space: nowrap;
+        width: 1%;
+    }
     .num {
         text-align: right;
         white-space: nowrap;

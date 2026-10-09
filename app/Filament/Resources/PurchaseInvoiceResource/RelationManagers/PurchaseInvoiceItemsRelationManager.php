@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\PurchaseInvoiceResource\RelationManagers;
 
+use App\Filament\Support\LotField;
+use App\Services\StockService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -22,7 +24,9 @@ class PurchaseInvoiceItemsRelationManager extends RelationManager
                     ->relationship('product', 'name')
                     ->searchable()
                     ->preload()
-                    ->nullable(),
+                    ->nullable()
+                    ->live(),
+                LotField::make(),
                 Forms\Components\TextInput::make('description')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('quantity')
@@ -46,10 +50,17 @@ class PurchaseInvoiceItemsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            ->description(fn (): ?string => $this->stockIsLocked()
+                ? 'La mercadería de esta compra ya ingresó al stock. Para modificar las líneas, volvé la compra a borrador.'
+                : null)
             ->columns([
                 Tables\Columns\TextColumn::make('product.name')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('lot.code')
+                    ->label('Lote')
+                    ->placeholder('—')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('quantity')
@@ -63,16 +74,41 @@ class PurchaseInvoiceItemsRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Tables\Actions\CreateAction::make()
+                    ->visible(fn (): bool => ! $this->stockIsLocked())
+                    ->after(function (): void {
+                        $this->syncStock();
+                    }),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (): bool => ! $this->stockIsLocked()),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn (): bool => ! $this->stockIsLocked()),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn (): bool => ! $this->stockIsLocked()),
                 ]),
             ]);
+    }
+
+    /**
+     * Una vez que la mercadería entró al depósito, las líneas quedan
+     * congeladas: editarlas dejaría el stock registrado sin respaldo.
+     */
+    private function stockIsLocked(): bool
+    {
+        return (bool) $this->getOwnerRecord()->stock_movements_recorded;
+    }
+
+    /**
+     * Cubre el caso de cargar las líneas con la compra ya marcada como
+     * recibida: el stock entra apenas hay mercadería que registrar.
+     */
+    private function syncStock(): void
+    {
+        app(StockService::class)->syncStockForPurchaseInvoice($this->getOwnerRecord());
     }
 }

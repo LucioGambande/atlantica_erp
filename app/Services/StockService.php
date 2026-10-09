@@ -5,9 +5,12 @@ namespace App\Services;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\PurchaseInvoice;
+use App\Models\StockMovement;
 use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class StockService
@@ -15,6 +18,8 @@ class StockService
     public const REFERENCE_INVOICE = 'Invoice';
 
     public const REFERENCE_ORDER = 'Order';
+
+    public const REFERENCE_PURCHASE_INVOICE = 'PurchaseInvoice';
 
     public function paginatedStock(?string $search, bool $onlyLowStock, int $perPage): LengthAwarePaginator
     {
@@ -78,6 +83,7 @@ class StockService
                     (int) $orderItem->quantity,
                     self::REFERENCE_ORDER,
                     $order->id,
+                    lotId: $orderItem->lot_id,
                 );
             }
         });
@@ -126,9 +132,9 @@ class StockService
 
             if ($invoice->isCreditNote()) {
                 if ($updateProductStock) {
-                    $this->incrementProductStock($product, $quantity, self::REFERENCE_INVOICE, $invoice->id);
+                    $this->incrementProductStock($product, $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id);
                 } else {
-                    $this->createMovement($product, 'in', $quantity, self::REFERENCE_INVOICE, $invoice->id);
+                    $this->createMovement($product, 'in', $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id);
                 }
             } elseif ($updateProductStock) {
                 $this->reduceProductStock(
@@ -137,9 +143,10 @@ class StockService
                     self::REFERENCE_INVOICE,
                     $invoice->id,
                     $enforceStockAvailability,
+                    $item->lot_id,
                 );
             } else {
-                $this->createMovement($product, 'out', $quantity, self::REFERENCE_INVOICE, $invoice->id);
+                $this->createMovement($product, 'out', $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id);
             }
 
             $created++;
@@ -160,6 +167,140 @@ class StockService
             $creditNote->update(['stock_movements_recorded' => true]);
             $originalInvoice->update(['stock_movements_recorded' => false]);
         });
+    }
+
+    /**
+     * Alinea el stock con el estado de la factura de compra: suma la
+     * mercadería cuando pasa a recibida/pagada y la revierte si vuelve a
+     * borrador. Idempotente — se puede llamar en cada guardado.
+     */
+    public function syncStockForPurchaseInvoice(PurchaseInvoice $purchaseInvoice): void
+    {
+        $purchaseInvoice->refresh();
+
+        if ($purchaseInvoice->hasEnteredStock() && $purchaseInvoice->generates_stock_movement) {
+            $this->applyStockFromPurchaseInvoice($purchaseInvoice);
+
+            return;
+        }
+
+        if ($purchaseInvoice->stock_movements_recorded) {
+            $this->reverseStockFromPurchaseInvoice($purchaseInvoice);
+        }
+    }
+
+    public function applyStockFromPurchaseInvoice(PurchaseInvoice $purchaseInvoice): void
+    {
+        DB::transaction(function () use ($purchaseInvoice): void {
+            $purchaseInvoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail($purchaseInvoice->id);
+
+            if (! $purchaseInvoice->generates_stock_movement || $purchaseInvoice->stock_movements_recorded) {
+                return;
+            }
+
+            // Sin líneas de mercadería todavía no hay nada que registrar: no
+            // marcamos la compra como registrada para que el stock entre
+            // cuando se carguen las líneas.
+            if ($this->recordPurchaseInvoiceEntries($purchaseInvoice) === 0) {
+                return;
+            }
+
+            $purchaseInvoice->update([
+                'stock_movements_recorded' => true,
+                'received_at' => $purchaseInvoice->received_at ?? now(),
+            ]);
+        });
+    }
+
+    /**
+     * Revierte con movimientos compensatorios de salida, en vez de borrar los
+     * de entrada: el log queda contando lo que realmente pasó.
+     *
+     * Se revierte lo que esta compra REGISTRÓ, no lo que dicen sus líneas. Una
+     * compra anterior a esta funcionalidad puede estar marcada como registrada
+     * sin tener movimientos propios (su mercadería se cargó a mano): en ese
+     * caso no hay nada que devolver y restar por las líneas sacaría del
+     * depósito stock que esta compra nunca sumó.
+     */
+    public function reverseStockFromPurchaseInvoice(PurchaseInvoice $purchaseInvoice): void
+    {
+        DB::transaction(function () use ($purchaseInvoice): void {
+            $purchaseInvoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail($purchaseInvoice->id);
+
+            if (! $purchaseInvoice->stock_movements_recorded) {
+                return;
+            }
+
+            foreach ($this->netMovementsFor($purchaseInvoice) as $entry) {
+                $product = Product::query()->find($entry->product_id);
+
+                if ($product === null || (int) $entry->net <= 0) {
+                    continue;
+                }
+
+                // Devolver mercadería puede dejar el saldo negativo si ya se
+                // vendió: lo registramos igual, como en las ventas.
+                $this->reduceProductStock(
+                    $product,
+                    (int) $entry->net,
+                    self::REFERENCE_PURCHASE_INVOICE,
+                    $purchaseInvoice->id,
+                    enforceStockAvailability: false,
+                    lotId: $entry->lot_id,
+                );
+            }
+
+            $purchaseInvoice->update(['stock_movements_recorded' => false]);
+        });
+    }
+
+    /**
+     * Saldo neto por producto y lote de los movimientos que generó esta
+     * compra. Netear (y no mirar solo las entradas) hace que recibir y
+     * revertir varias veces no acumule reversiones de más.
+     *
+     * @return Collection<int, object>
+     */
+    protected function netMovementsFor(PurchaseInvoice $purchaseInvoice)
+    {
+        return StockMovement::query()
+            ->where('reference_type', self::REFERENCE_PURCHASE_INVOICE)
+            ->where('reference_id', $purchaseInvoice->id)
+            ->selectRaw("product_id, lot_id, SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net")
+            ->groupBy('product_id', 'lot_id')
+            ->get();
+    }
+
+    /**
+     * @return int cantidad de líneas que movieron stock
+     */
+    protected function recordPurchaseInvoiceEntries(PurchaseInvoice $purchaseInvoice): int
+    {
+        $purchaseInvoice->load('purchaseInvoiceItems.product');
+        $moved = 0;
+
+        foreach ($purchaseInvoice->purchaseInvoiceItems as $item) {
+            $product = $item->product;
+            $quantity = abs((int) $item->quantity);
+
+            // Las líneas sin producto (servicios, portes, recargos) no son
+            // mercadería: no mueven stock.
+            if ($product === null || $quantity <= 0) {
+                continue;
+            }
+
+            $this->incrementProductStock(
+                $product,
+                $quantity,
+                self::REFERENCE_PURCHASE_INVOICE,
+                $purchaseInvoice->id,
+                $item->lot_id,
+            );
+
+            $moved++;
+        }
+
+        return $moved;
     }
 
     public function recalculateAllProductStockFromMovements(): int
@@ -189,6 +330,7 @@ class StockService
         string $referenceType,
         int $referenceId,
         bool $enforceStockAvailability = true,
+        ?int $lotId = null,
     ): void {
         if ($product === null) {
             throw new DomainException('No se pudo resolver el producto de la línea.');
@@ -200,7 +342,7 @@ class StockService
 
         $product->decrement('stock', $quantity);
 
-        $this->createMovement($product, 'out', $quantity, $referenceType, $referenceId);
+        $this->createMovement($product, 'out', $quantity, $referenceType, $referenceId, $lotId);
     }
 
     protected function incrementProductStock(
@@ -208,10 +350,11 @@ class StockService
         int $quantity,
         string $referenceType,
         int $referenceId,
+        ?int $lotId = null,
     ): void {
         $product->increment('stock', $quantity);
 
-        $this->createMovement($product, 'in', $quantity, $referenceType, $referenceId);
+        $this->createMovement($product, 'in', $quantity, $referenceType, $referenceId, $lotId);
     }
 
     protected function createMovement(
@@ -220,8 +363,10 @@ class StockService
         int $quantity,
         string $referenceType,
         int $referenceId,
+        ?int $lotId = null,
     ): void {
         $product->stockMovements()->create([
+            'lot_id' => $lotId,
             'type' => $type,
             'quantity' => $quantity,
             'reference_type' => $referenceType,

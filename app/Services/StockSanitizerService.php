@@ -47,6 +47,15 @@ class StockSanitizerService
                 ->pluck('id');
 
             $stats['movements_removed'] = StockMovement::query()
+                // Las entradas por factura de compra quedan fuera del saneo:
+                // tienen su propio respaldo documental y su propio flag de
+                // idempotencia. Borrarlas vaciaría el depósito sin que ninguna
+                // compra pueda volver a registrarlas.
+                ->where(function ($query): void {
+                    $query
+                        ->where('reference_type', '!=', StockService::REFERENCE_PURCHASE_INVOICE)
+                        ->orWhereNull('reference_type');
+                })
                 ->where(function ($query) use ($validInvoiceIds): void {
                     $query
                         ->where('reference_type', '!=', self::REFERENCE_INVOICE)
@@ -89,6 +98,11 @@ class StockSanitizerService
             ->pluck('id');
 
         $stats['movements_removed'] = StockMovement::query()
+            ->where(function ($query): void {
+                $query
+                    ->where('reference_type', '!=', StockService::REFERENCE_PURCHASE_INVOICE)
+                    ->orWhereNull('reference_type');
+            })
             ->where(function ($query) use ($validInvoiceIds): void {
                 $query
                     ->where('reference_type', '!=', self::REFERENCE_INVOICE)

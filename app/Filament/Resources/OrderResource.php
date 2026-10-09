@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\OrderResource\Pages;
+use App\Filament\Support\LotField;
 use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Models\Invoice;
@@ -236,7 +237,7 @@ class OrderResource extends Resource
                                     ->searchable(['name', 'sku'])
                                     ->preload()
                                     ->required()
-                                    ->columnSpan(6)
+                                    ->columnSpan(4)
                                     ->live()
                                     ->afterStateUpdated(function ($state, Set $set, Get $get): void {
                                         if (! $state) {
@@ -252,6 +253,8 @@ class OrderResource extends Resource
                                         }
                                         static::recalculateLineTotal($set, $get);
                                     }),
+                                LotField::make()
+                                    ->columnSpan(2),
                                 Forms\Components\TextInput::make('quantity')
                                     ->label('Cant.')
                                     ->required()

@@ -38,6 +38,11 @@ class Product extends Model
         return $this->hasMany(InvoiceItem::class);
     }
 
+    public function lots(): HasMany
+    {
+        return $this->hasMany(Lot::class);
+    }
+
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);

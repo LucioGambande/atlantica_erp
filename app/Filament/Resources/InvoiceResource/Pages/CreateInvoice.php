@@ -67,6 +67,7 @@ class CreateInvoice extends CreateRecord
         foreach ($this->lineItems as $row) {
             $invoice->invoiceItems()->create([
                 'product_id' => (int) $row['product_id'],
+                'lot_id' => filled($row['lot_id'] ?? null) ? (int) $row['lot_id'] : null,
                 'description' => $row['description'] ?? 'Línea de factura',
                 'quantity' => (int) ($row['quantity'] ?? 0),
                 'unit_price' => (float) ($row['unit_price'] ?? 0),

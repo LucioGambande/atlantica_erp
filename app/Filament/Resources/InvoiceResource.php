@@ -6,6 +6,7 @@ use App\Filament\Forms\PaymentDetailForm;
 use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\InvoiceResource\Pages;
 use App\Filament\Resources\InvoiceResource\RelationManagers;
+use App\Filament\Support\LotField;
 use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Models\Invoice;
@@ -437,7 +438,7 @@ class InvoiceResource extends Resource
                                     ->searchable()
                                     ->preload()
                                     ->required()
-                                    ->columnSpan(5)
+                                    ->columnSpan(4)
                                     ->live()
                                     ->afterStateUpdated(function ($state, Set $set, Get $get): void {
                                         if (! $state) {
@@ -455,6 +456,8 @@ class InvoiceResource extends Resource
 
                                         OrderResource::recalculateLineTotal($set, $get);
                                     }),
+                                LotField::make()
+                                    ->columnSpan(2),
                                 Forms\Components\TextInput::make('quantity')
                                     ->label('Cant.')
                                     ->required()
@@ -481,7 +484,7 @@ class InvoiceResource extends Resource
                                     ->minValue(0)
                                     ->maxValue(100)
                                     ->suffix('%')
-                                    ->columnSpan(2)
+                                    ->columnSpan(1)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn (Set $set, Get $get) => OrderResource::recalculateLineTotal($set, $get)),
                                 Forms\Components\TextInput::make('total_price')
@@ -590,6 +593,17 @@ class InvoiceResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('lot_id')
+                    ->label('Lote')
+                    ->options(fn (): array => LotField::allOptions())
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'] ?? null,
+                        fn (Builder $q, $lotId): Builder => $q->whereHas(
+                            'invoiceItems',
+                            fn (Builder $items): Builder => $items->where('lot_id', $lotId),
+                        ),
+                    )),
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Estado')
                     ->options([

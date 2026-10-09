@@ -71,6 +71,7 @@ class InvoiceService
             foreach ($order->orderItems as $orderItem) {
                 $invoice->invoiceItems()->create([
                     'product_id' => $orderItem->product_id,
+                    'lot_id' => $orderItem->lot_id,
                     'description' => $orderItem->product?->name ?? 'Línea de pedido',
                     'quantity' => $orderItem->quantity,
                     'unit_price' => $orderItem->unit_price,
@@ -139,6 +140,7 @@ class InvoiceService
             foreach ($invoice->invoiceItems as $item) {
                 $creditNote->invoiceItems()->create([
                     'product_id' => $item->product_id,
+                    'lot_id' => $item->lot_id,
                     'description' => $item->description,
                     'quantity' => $item->quantity,
                     'unit_price' => -1 * abs((float) $item->unit_price),
@@ -231,6 +233,7 @@ class InvoiceService
                 $creditNote->invoiceItems()->create([
                     'credited_invoice_item_id' => $item->id,
                     'product_id' => $item->product_id,
+                    'lot_id' => $item->lot_id,
                     'description' => $item->description,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,

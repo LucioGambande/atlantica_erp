@@ -55,7 +55,7 @@ class InvoicePrintService
     public function findForPrint(int $invoiceId): Invoice
     {
         $invoice = Invoice::query()
-            ->with(['customer', 'invoiceItems.product'])
+            ->with(['customer', 'invoiceItems.product', 'invoiceItems.lot'])
             ->whereIn('status', $this->printableStatuses())
             ->findOrFail($invoiceId);
 
@@ -86,7 +86,7 @@ class InvoicePrintService
         }
 
         return Invoice::query()
-            ->with(['customer', 'invoiceItems.product'])
+            ->with(['customer', 'invoiceItems.product', 'invoiceItems.lot'])
             ->whereIn('status', $this->printableStatuses())
             ->where('document_type', 'invoice')
             ->whereBetween('issued_at', [$fromDate, $toDate])
@@ -112,7 +112,7 @@ class InvoicePrintService
         }
 
         return Invoice::query()
-            ->with(['customer', 'invoiceItems.product'])
+            ->with(['customer', 'invoiceItems.product', 'invoiceItems.lot'])
             ->whereIn('status', $this->printableStatuses())
             ->where('document_type', 'invoice')
             ->get()
@@ -147,6 +147,7 @@ class InvoicePrintService
 
             return [
                 'description' => $item->description ?: ($item->product?->name ?? 'Línea'),
+                'lot' => $item->lot?->code,
                 'quantity' => abs((int) $item->quantity),
                 'unit_price' => round(abs((float) $item->unit_price), 2),
                 'vat_rate' => $vatRate,

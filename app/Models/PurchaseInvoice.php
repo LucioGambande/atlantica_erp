@@ -16,6 +16,8 @@ class PurchaseInvoice extends Model
         'supplier_id',
         'document_number',
         'status',
+        'generates_stock_movement',
+        'stock_movements_recorded',
         'total_amount',
         'received_at',
     ];
@@ -23,6 +25,8 @@ class PurchaseInvoice extends Model
     protected function casts(): array
     {
         return [
+            'generates_stock_movement' => 'boolean',
+            'stock_movements_recorded' => 'boolean',
             'total_amount' => 'decimal:2',
             'received_at' => 'datetime',
         ];
@@ -36,6 +40,16 @@ class PurchaseInvoice extends Model
     public function purchaseInvoiceItems(): HasMany
     {
         return $this->hasMany(PurchaseInvoiceItem::class);
+    }
+
+    /**
+     * La mercadería entró al depósito: el stock de una compra se suma cuando
+     * la factura pasa a "recibida" (o directamente a "pagada"), no al
+     * cargarla como borrador.
+     */
+    public function hasEnteredStock(): bool
+    {
+        return in_array($this->status, ['received', 'paid'], true);
     }
 
     public function vatRate(): float

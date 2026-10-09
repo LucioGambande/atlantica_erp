@@ -12,6 +12,7 @@ class StockMovement extends Model
 
     protected $fillable = [
         'product_id',
+        'lot_id',
         'type',
         'quantity',
         'reference_type',
@@ -28,5 +29,10 @@ class StockMovement extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function lot(): BelongsTo
+    {
+        return $this->belongsTo(Lot::class);
     }
 }

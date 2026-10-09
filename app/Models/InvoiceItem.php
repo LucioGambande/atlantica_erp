@@ -18,6 +18,7 @@ class InvoiceItem extends Model
         'credited_invoice_item_id',
         'legacy_line_id',
         'product_id',
+        'lot_id',
         'description',
         'quantity',
         'unit_price',
@@ -52,6 +53,11 @@ class InvoiceItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function lot(): BelongsTo
+    {
+        return $this->belongsTo(Lot::class);
     }
 
     /**

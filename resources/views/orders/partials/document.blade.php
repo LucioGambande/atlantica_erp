@@ -61,10 +61,17 @@
         </tr>
     </table>
 
+    @php
+        $showLots = collect($document['lines'])->contains(fn ($line): bool => filled($line['lot'] ?? null));
+    @endphp
+
     <table class="items-table">
         <thead>
             <tr>
                 <th>Descripción</th>
+                @if ($showLots)
+                    <th class="lot">Lote</th>
+                @endif
                 <th class="num">Unidades</th>
                 @if ($withPrices)
                     <th class="num">Precio unitario</th>
@@ -78,6 +85,9 @@
             @forelse ($document['lines'] as $line)
                 <tr>
                     <td>{{ $line['description'] }}</td>
+                    @if ($showLots)
+                        <td class="lot">{{ $line['lot'] ?? '—' }}</td>
+                    @endif
                     <td class="num">{{ $line['quantity'] }}</td>
                     @if ($withPrices)
                         <td class="num">{{ $formatMoney($line['unit_price']) }}</td>
@@ -88,7 +98,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $withPrices ? 6 : 2 }}">Sin líneas</td>
+                    <td colspan="{{ ($withPrices ? 6 : 2) + ($showLots ? 1 : 0) }}">Sin líneas</td>
                 </tr>
             @endforelse
         </tbody>
@@ -116,5 +126,11 @@
                 </td>
             </tr>
         </table>
+
+        @if ($document['iban'])
+            <div class="footer">
+                <strong>IBAN:</strong> {{ $document['iban'] }}
+            </div>
+        @endif
     @endif
 </div>

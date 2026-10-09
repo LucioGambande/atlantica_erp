@@ -5,9 +5,11 @@ namespace App\Filament\Resources;
 use App\Filament\Navigation\NavigationGroups;
 use App\Filament\Resources\PurchaseInvoiceResource\Pages;
 use App\Filament\Resources\PurchaseInvoiceResource\RelationManagers;
+use App\Filament\Support\LotField;
 use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Models\PurchaseInvoice;
+use App\Services\StockService;
 use App\Support\ErpAuthorization;
 use App\Support\VatTotals;
 use Filament\Forms;
@@ -16,6 +18,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 class PurchaseInvoiceResource extends Resource
 {
@@ -70,6 +73,15 @@ class PurchaseInvoiceResource extends Resource
                     ])
                     ->required()
                     ->default('draft'),
+                Forms\Components\Toggle::make('generates_stock_movement')
+                    ->label('Suma stock al recibirla')
+                    ->helperText('Desactivalo para compras que no son mercadería (servicios, portes, gastos).')
+                    ->default(true)
+                    ->disabled(fn (?PurchaseInvoice $record): bool => $record?->stock_movements_recorded ?? false),
+                Forms\Components\Placeholder::make('stock_movements_recorded_notice')
+                    ->label('Stock')
+                    ->content('Mercadería ingresada. Para corregir las líneas, volvé la compra a borrador.')
+                    ->visible(fn (?PurchaseInvoice $record): bool => $record?->stock_movements_recorded ?? false),
                 Forms\Components\TextInput::make('total_amount')
                     ->label('Total (con IVA)')
                     ->helperText('Importe final con IVA. Si hay líneas, el total se calcula desde ellas.')
@@ -129,6 +141,17 @@ class PurchaseInvoiceResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('lot_id')
+                    ->label('Lote')
+                    ->options(fn (): array => LotField::allOptions())
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'] ?? null,
+                        fn (Builder $q, $lotId): Builder => $q->whereHas(
+                            'purchaseInvoiceItems',
+                            fn (Builder $items): Builder => $items->where('lot_id', $lotId),
+                        ),
+                    )),
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
                         'draft' => 'Borrador',
@@ -158,13 +181,26 @@ class PurchaseInvoiceResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(fn (PurchaseInvoice $record) => static::releaseStock($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(fn (Collection $records) => $records->each(
+                            fn (PurchaseInvoice $record) => static::releaseStock($record),
+                        )),
                 ]),
             ]);
+    }
+
+    /**
+     * Borrar una compra ya recibida tiene que devolver el stock que sumó:
+     * si no, la mercadería queda en el depósito sin respaldo documental.
+     */
+    public static function releaseStock(PurchaseInvoice $purchaseInvoice): void
+    {
+        app(StockService::class)->reverseStockFromPurchaseInvoice($purchaseInvoice);
     }
 
     public static function getRelations(): array

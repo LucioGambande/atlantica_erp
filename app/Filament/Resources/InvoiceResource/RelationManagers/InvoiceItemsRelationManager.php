@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InvoiceResource\RelationManagers;
 
 use App\Filament\Resources\OrderResource;
+use App\Filament\Support\LotField;
 use App\Models\Product;
 use App\Services\PriceResolutionService;
 use Filament\Forms;
@@ -44,6 +45,7 @@ class InvoiceItemsRelationManager extends RelationManager
                         }
                         OrderResource::recalculateLineTotal($set, $get);
                     }),
+                LotField::make(),
                 Forms\Components\Textarea::make('description')
                     ->label('Descripción')
                     ->required()
@@ -99,6 +101,10 @@ class InvoiceItemsRelationManager extends RelationManager
                     ->label('Producto')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('lot.code')
+                    ->label('Lote')
+                    ->placeholder('—')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descripción')
                     ->searchable(),

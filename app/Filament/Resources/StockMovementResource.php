@@ -86,6 +86,11 @@ class StockMovementResource extends Resource
                     ->searchable(isIndividual: true, isGlobal: false)
                     ->sortable()
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('lot.code')
+                    ->label('Lote')
+                    ->placeholder('—')
+                    ->searchable(isIndividual: true, isGlobal: false)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('type')
                     ->badge()
                     ->extraHeaderAttributes(TableUi::headerSelectFilter('type', [

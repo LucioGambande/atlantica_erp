@@ -63,10 +63,17 @@
         </tr>
     </table>
 
+    @php
+        $showLots = collect($document['lines'])->contains(fn ($line): bool => filled($line['lot'] ?? null));
+    @endphp
+
     <table class="items-table">
         <thead>
             <tr>
                 <th>Descripción</th>
+                @if ($showLots)
+                    <th class="lot">Lote</th>
+                @endif
                 <th class="num">Unidades</th>
                 <th class="num">Precio unitario</th>
                 <th class="num">IVA</th>
@@ -78,6 +85,9 @@
             @forelse ($document['lines'] as $line)
                 <tr>
                     <td>{{ $line['description'] }}</td>
+                    @if ($showLots)
+                        <td class="lot">{{ $line['lot'] ?? '—' }}</td>
+                    @endif
                     <td class="num">{{ $line['quantity'] }}</td>
                     <td class="num">{{ $formatMoney($line['unit_price']) }}</td>
                     <td class="num">{{ number_format($line['vat_rate'] * 100, 0) }}%</td>
@@ -86,7 +96,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6">Sin líneas</td>
+                    <td colspan="{{ $showLots ? 7 : 6 }}">Sin líneas</td>
                 </tr>
             @endforelse
         </tbody>
