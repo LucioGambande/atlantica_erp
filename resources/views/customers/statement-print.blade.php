@@ -6,6 +6,7 @@
     <title>{{ $document['title'] }} — {{ $document['customer']->name }}</title>
     <style>
         @page {
+            size: landscape;
             margin: 14mm 12mm;
         }
         * { box-sizing: border-box; }

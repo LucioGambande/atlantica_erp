@@ -50,7 +50,7 @@ class AccountStatementPrintController extends Controller
             'logoBase64' => $logoBase64,
             'pdfUrl' => null,
         ])
-            ->setPaper('a4', 'portrait')
+            ->setPaper('a4', 'landscape')
             ->setOption('defaultFont', 'DejaVu Sans')
             ->setOption('isHtml5ParserEnabled', true)
             ->stream($this->printService->pdfFilename($customer));

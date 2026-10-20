@@ -15,6 +15,7 @@ class PaymentService
 {
     public function __construct(
         protected PaymentDetailService $paymentDetailService,
+        protected AccountStatementService $accountStatementService,
     ) {}
 
     public function registerInvoicePayment(
@@ -194,7 +195,10 @@ class PaymentService
 
             $this->syncInvoicesFromAllocations($invoiceIds);
 
-            return $payment->fresh(['allocations.invoice', 'invoice', 'customer', 'paymentMethod', 'detail']);
+            $payment = $payment->fresh(['allocations.invoice', 'invoice', 'customer', 'paymentMethod', 'detail']);
+            $this->accountStatementService->syncPayment($payment);
+
+            return $payment;
         });
     }
 
