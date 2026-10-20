@@ -113,7 +113,8 @@
         }
         .col-date { width: 11%; }
         .col-type { width: 10%; }
-        .col-desc { width: 34%; }
+        .col-desc { width: 24%; }
+        .col-status { width: 10%; }
         .col-money { width: 15%; }
         .text-right { text-align: right; }
         .text-danger { color: #b91c1c; }
@@ -220,11 +221,18 @@
             </tr>
         </table>
 
+        @php
+            $showInvoiceStatus = ! ($document['summary']['exclude_settled_invoices'] ?? false);
+            $leadingColumns = $showInvoiceStatus ? 4 : 3;
+        @endphp
         <table class="entries-table">
             <colgroup>
                 <col class="col-date">
                 <col class="col-type">
                 <col class="col-desc">
+                @if ($showInvoiceStatus)
+                    <col class="col-status">
+                @endif
                 <col class="col-money">
                 <col class="col-money">
                 <col class="col-money">
@@ -234,6 +242,9 @@
                     <th>Fecha</th>
                     <th>Tipo</th>
                     <th>Descripción</th>
+                    @if ($showInvoiceStatus)
+                        <th>Estado factura</th>
+                    @endif
                     <th class="text-right">Débito</th>
                     <th class="text-right">Crédito</th>
                     <th class="text-right">Saldo</th>
@@ -245,6 +256,9 @@
                         <td class="num">{{ $entry->date?->format('d/m/Y') }}</td>
                         <td>{{ $entry->typeLabel() }}</td>
                         <td>{{ $entry->description }}</td>
+                        @if ($showInvoiceStatus)
+                            <td>{{ $entry->reference instanceof \App\Models\Invoice ? $entry->reference->settlementStatus() : '—' }}</td>
+                        @endif
                         <td class="text-right text-danger num">
                             {{ (float) $entry->debit > 0 ? number_format($entry->debit, 2, ',', '.').' €' : '—' }}
                         </td>
@@ -255,14 +269,14 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6">No hay movimientos en el período seleccionado.</td>
+                        <td colspan="{{ $leadingColumns + 3 }}">No hay movimientos en el período seleccionado.</td>
                     </tr>
                 @endforelse
             </tbody>
             @if ($document['entries']->isNotEmpty())
                 <tfoot>
                     <tr>
-                        <th colspan="3" class="text-right">Totales del período</th>
+                        <th colspan="{{ $leadingColumns }}" class="text-right">Totales del período</th>
                         <th class="text-right text-danger num">{{ number_format($document['summary']['total_debit'], 2, ',', '.') }} €</th>
                         <th class="text-right text-success num">{{ number_format($document['summary']['total_credit'], 2, ',', '.') }} €</th>
                         <th class="text-right num">{{ number_format($document['summary']['final_balance'], 2, ',', '.') }} €</th>
