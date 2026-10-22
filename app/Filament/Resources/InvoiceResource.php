@@ -420,7 +420,7 @@ class InvoiceResource extends Resource
                         Forms\Components\Repeater::make('line_items')
                             ->label('')
                             ->live()
-                            ->columns(12)
+                            ->columns(13)
                             ->minItems(1)
                             ->defaultItems(1)
                             ->addActionLabel('Agregar línea')
@@ -484,7 +484,7 @@ class InvoiceResource extends Resource
                                     ->minValue(0)
                                     ->maxValue(100)
                                     ->suffix('%')
-                                    ->columnSpan(1)
+                                    ->columnSpan(2)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn (Set $set, Get $get) => OrderResource::recalculateLineTotal($set, $get)),
                                 Forms\Components\TextInput::make('total_price')

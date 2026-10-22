@@ -212,7 +212,7 @@ class OrderResource extends Resource
                         Forms\Components\Repeater::make('orderItems')
                             ->relationship()
                             ->live()
-                            ->columns(14)
+                            ->columns(15)
                             ->minItems(1)
                             ->defaultItems(1)
                             ->itemLabel(null)
@@ -306,7 +306,7 @@ class OrderResource extends Resource
                                     ->minValue(0)
                                     ->maxValue(100)
                                     ->suffix('%')
-                                    ->columnSpan(1)
+                                    ->columnSpan(2)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function (Set $set, Get $get): void {
                                         static::recalculateLineTotal($set, $get);
