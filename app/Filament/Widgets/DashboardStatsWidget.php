@@ -30,7 +30,7 @@ class DashboardStatsWidget extends BaseWidget
     /**
      * Bump al cambiar el shape del array cacheado para invalidar entradas viejas.
      */
-    protected const STATS_CACHE_VERSION = 2;
+    protected const STATS_CACHE_VERSION = 3;
 
     protected function getStats(): array
     {
@@ -60,6 +60,11 @@ class DashboardStatsWidget extends BaseWidget
                         ->whereBetween('issued_at', [$monthStart, $monthEnd])
                         ->get()
                         ->sum(fn (Invoice $invoice): float => $invoice->grossAmount()),
+                    'invoicedYear' => (float) Invoice::query()
+                        ->whereIn('status', ['issued', 'paid'])
+                        ->whereBetween('issued_at', [$yearStart, $yearEnd])
+                        ->get()
+                        ->sum(fn (Invoice $invoice): float => $invoice->grossAmount()),
                     'customersWithDebt' => Customer::query()->withDebt()->count(),
                     'customersOverCreditLimit' => Customer::query()
                         ->where('credit_limit', '>', 0)
@@ -79,6 +84,7 @@ class DashboardStatsWidget extends BaseWidget
 
         $collectedThisMonth = $metrics['collected'];
         $invoicedThisMonth = $metrics['invoiced'];
+        $invoicedThisYear = $metrics['invoicedYear'];
         $customersWithDebt = $metrics['customersWithDebt'];
         $customersOverCreditLimit = $metrics['customersOverCreditLimit'];
         $totalReceivable = $metrics['totalReceivable'];
@@ -95,6 +101,12 @@ class DashboardStatsWidget extends BaseWidget
                 ->url(ErpAuthorization::userCan('manage invoices') ? PaymentResource::getUrl('index') : null),
             Stat::make('Facturado este mes', Number::currency($invoicedThisMonth, 'EUR'))
                 ->description($monthLabel)
+                ->descriptionIcon('heroicon-m-document-text')
+                ->color('primary')
+                ->icon('heroicon-o-document-text')
+                ->url(InvoicePrintAuthorization::canPrint() ? InvoiceResource::getUrl('index') : null),
+            Stat::make('Facturado este año', Number::currency($invoicedThisYear, 'EUR'))
+                ->description($yearLabel)
                 ->descriptionIcon('heroicon-m-document-text')
                 ->color('primary')
                 ->icon('heroicon-o-document-text')
