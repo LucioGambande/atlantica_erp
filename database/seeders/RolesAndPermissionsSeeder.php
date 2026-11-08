@@ -22,6 +22,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage orders',
             'manage invoices',
             'manage stock',
+            'manage purchases',
             'print invoices',
         ];
 
