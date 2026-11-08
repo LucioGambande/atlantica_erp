@@ -1,6 +1,8 @@
 <x-filament-panels::page>
     @php
         $summary = $this->getSummary();
+        $warehouseTotals = $this->getWarehouseTotals();
+        $warehouseNames = \App\Models\Warehouse::query()->pluck('name', 'id');
     @endphp
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-6">
@@ -35,6 +37,29 @@
             @endif
         </x-filament::section>
     </div>
+
+    @if ($warehouseTotals->isNotEmpty())
+        <x-filament::section class="mb-6">
+            <x-slot name="heading">Totales por almacén</x-slot>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                @foreach ($warehouseTotals as $row)
+                    <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ $row->warehouse_id !== null ? ($warehouseNames[$row->warehouse_id] ?? 'Almacén #'.$row->warehouse_id) : 'Sin almacén asignado' }}
+                        </div>
+                        <div class="text-xl font-semibold mt-1">{{ number_format((int) $row->total_units) }} uds.</div>
+                        <div class="text-xs text-gray-500 mt-1">{{ \Illuminate\Support\Number::currency((float) $row->stock_value, 'EUR') }}</div>
+                    </div>
+                @endforeach
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Total general</div>
+                    <div class="text-xl font-semibold mt-1">{{ number_format((int) $warehouseTotals->sum('total_units')) }} uds.</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ \Illuminate\Support\Number::currency((float) $warehouseTotals->sum('stock_value'), 'EUR') }}</div>
+                </div>
+            </div>
+        </x-filament::section>
+    @endif
 
     {{ $this->table }}
 </x-filament-panels::page>

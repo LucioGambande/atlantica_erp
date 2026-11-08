@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\PurchaseInvoice;
 use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Models\Warehouse;
 use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -200,6 +201,24 @@ class PurchaseInvoiceStockTest extends TestCase
         // El saldo del lote y el del producto tienen que coincidir cuando hay
         // un solo lote en juego.
         $this->assertSame(192, $product->fresh()->stock);
+    }
+
+    public function test_receiving_a_purchase_invoice_records_its_warehouse_on_the_movement(): void
+    {
+        $product = $this->product(stock: 0);
+        $warehouse = $this->warehouse('Depósito Madrid');
+        $purchase = $this->purchase($product, null, quantity: 25, status: 'received');
+        $purchase->update(['warehouse_id' => $warehouse->id]);
+
+        app(StockService::class)->syncStockForPurchaseInvoice($purchase);
+
+        $movement = StockMovement::query()->where('reference_type', 'PurchaseInvoice')->sole();
+        $this->assertSame($warehouse->id, $movement->warehouse_id);
+    }
+
+    private function warehouse(string $name = 'Depósito Test'): Warehouse
+    {
+        return Warehouse::create(['name' => $name, 'type' => 'own', 'is_active' => true]);
     }
 
     private function product(int $stock): Product

@@ -291,6 +291,14 @@ class InvoiceResource extends Resource
                     ->searchable()
                     ->preload()
                     ->disabled(fn (?Invoice $record): bool => $record !== null),
+                Forms\Components\Select::make('warehouse_id')
+                    ->label('Almacén')
+                    ->relationship('warehouse', 'name', fn (Builder $query) => $query->active())
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->helperText('Almacén desde el que se despacha esta factura.')
+                    ->disabled(fn (?Invoice $record): bool => $record?->stock_movements_recorded ?? false),
                 Forms\Components\Placeholder::make('linked_order')
                     ->label('Pedido vinculado')
                     ->content(function (?Invoice $record): HtmlString|string {

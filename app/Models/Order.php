@@ -16,6 +16,7 @@ class Order extends Model
 
     protected $fillable = [
         'customer_id',
+        'warehouse_id',
         'status',
         'total_amount',
         'ordered_at',
@@ -32,6 +33,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function orderItems(): HasMany

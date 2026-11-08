@@ -26,6 +26,7 @@ class Invoice extends Model
     protected $fillable = [
         'customer_id',
         'order_id',
+        'warehouse_id',
         'credited_invoice_id',
         'consolidated_into_invoice_id',
         'invoice_number',
@@ -102,6 +103,11 @@ class Invoice extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function creditedInvoice(): BelongsTo

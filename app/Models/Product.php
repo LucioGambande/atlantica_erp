@@ -48,6 +48,19 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    /**
+     * Unidades de este producto en un almacén puntual, derivadas del log
+     * de movimientos (mismo criterio que Lot::stockBalance()).
+     */
+    public function stockBalanceInWarehouse(int $warehouseId, ?int $lotId = null): int
+    {
+        return (int) $this->stockMovements()
+            ->where('warehouse_id', $warehouseId)
+            ->when($lotId !== null, fn ($query) => $query->where('lot_id', $lotId))
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END), 0) as balance")
+            ->value('balance');
+    }
+
     public function purchaseInvoiceItems(): HasMany
     {
         return $this->hasMany(PurchaseInvoiceItem::class);

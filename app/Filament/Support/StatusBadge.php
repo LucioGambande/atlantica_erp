@@ -4,6 +4,7 @@ namespace App\Filament\Support;
 
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
+use App\Models\StockTransfer;
 
 /**
  * Colores semáforo para badges de estado en Filament.
@@ -106,6 +107,21 @@ class StatusBadge
             LedgerEntry::TYPE_ADJUSTMENT => self::NEUTRAL,
             default => self::NEUTRAL,
         };
+    }
+
+    public static function stockTransfer(string $status): string
+    {
+        return match ($status) {
+            'completed' => self::SUCCESS,
+            'draft' => self::NEUTRAL,
+            'cancelled' => self::DANGER,
+            default => self::NEUTRAL,
+        };
+    }
+
+    public static function stockTransferLabel(string $status): string
+    {
+        return StockTransfer::STATUSES[$status] ?? $status;
     }
 
     public static function stockLevel(int $stock, int $lowThreshold = 5): string

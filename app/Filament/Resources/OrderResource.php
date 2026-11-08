@@ -171,6 +171,13 @@ class OrderResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload(),
+                        Forms\Components\Select::make('warehouse_id')
+                            ->label('Almacén')
+                            ->relationship('warehouse', 'name', fn (Builder $query) => $query->active())
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->helperText('Almacén desde el que se despacha este pedido.'),
                         Forms\Components\Select::make('status')
                             ->label('Estado')
                             ->options([

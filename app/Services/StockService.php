@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\PurchaseInvoice;
 use App\Models\StockMovement;
+use App\Models\StockTransfer;
 use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -20,6 +21,8 @@ class StockService
     public const REFERENCE_ORDER = 'Order';
 
     public const REFERENCE_PURCHASE_INVOICE = 'PurchaseInvoice';
+
+    public const REFERENCE_STOCK_TRANSFER = 'StockTransfer';
 
     public function paginatedStock(?string $search, bool $onlyLowStock, int $perPage): LengthAwarePaginator
     {
@@ -84,6 +87,7 @@ class StockService
                     self::REFERENCE_ORDER,
                     $order->id,
                     lotId: $orderItem->lot_id,
+                    warehouseId: $order->warehouse_id,
                 );
             }
         });
@@ -132,9 +136,9 @@ class StockService
 
             if ($invoice->isCreditNote()) {
                 if ($updateProductStock) {
-                    $this->incrementProductStock($product, $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id);
+                    $this->incrementProductStock($product, $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id, $invoice->warehouse_id);
                 } else {
-                    $this->createMovement($product, 'in', $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id);
+                    $this->createMovement($product, 'in', $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id, $invoice->warehouse_id);
                 }
             } elseif ($updateProductStock) {
                 $this->reduceProductStock(
@@ -144,9 +148,10 @@ class StockService
                     $invoice->id,
                     $enforceStockAvailability,
                     $item->lot_id,
+                    $invoice->warehouse_id,
                 );
             } else {
-                $this->createMovement($product, 'out', $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id);
+                $this->createMovement($product, 'out', $quantity, self::REFERENCE_INVOICE, $invoice->id, $item->lot_id, $invoice->warehouse_id);
             }
 
             $created++;
@@ -247,6 +252,7 @@ class StockService
                     $purchaseInvoice->id,
                     enforceStockAvailability: false,
                     lotId: $entry->lot_id,
+                    warehouseId: $entry->warehouse_id,
                 );
             }
 
@@ -266,8 +272,8 @@ class StockService
         return StockMovement::query()
             ->where('reference_type', self::REFERENCE_PURCHASE_INVOICE)
             ->where('reference_id', $purchaseInvoice->id)
-            ->selectRaw("product_id, lot_id, SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net")
-            ->groupBy('product_id', 'lot_id')
+            ->selectRaw("product_id, lot_id, warehouse_id, SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net")
+            ->groupBy('product_id', 'lot_id', 'warehouse_id')
             ->get();
     }
 
@@ -295,6 +301,7 @@ class StockService
                 self::REFERENCE_PURCHASE_INVOICE,
                 $purchaseInvoice->id,
                 $item->lot_id,
+                $purchaseInvoice->warehouse_id,
             );
 
             $moved++;
@@ -331,6 +338,7 @@ class StockService
         int $referenceId,
         bool $enforceStockAvailability = true,
         ?int $lotId = null,
+        ?int $warehouseId = null,
     ): void {
         if ($product === null) {
             throw new DomainException('No se pudo resolver el producto de la línea.');
@@ -342,7 +350,7 @@ class StockService
 
         $product->decrement('stock', $quantity);
 
-        $this->createMovement($product, 'out', $quantity, $referenceType, $referenceId, $lotId);
+        $this->createMovement($product, 'out', $quantity, $referenceType, $referenceId, $lotId, $warehouseId);
     }
 
     protected function incrementProductStock(
@@ -351,10 +359,11 @@ class StockService
         string $referenceType,
         int $referenceId,
         ?int $lotId = null,
+        ?int $warehouseId = null,
     ): void {
         $product->increment('stock', $quantity);
 
-        $this->createMovement($product, 'in', $quantity, $referenceType, $referenceId, $lotId);
+        $this->createMovement($product, 'in', $quantity, $referenceType, $referenceId, $lotId, $warehouseId);
     }
 
     protected function createMovement(
@@ -364,13 +373,158 @@ class StockService
         string $referenceType,
         int $referenceId,
         ?int $lotId = null,
+        ?int $warehouseId = null,
     ): void {
         $product->stockMovements()->create([
             'lot_id' => $lotId,
+            'warehouse_id' => $warehouseId,
             'type' => $type,
             'quantity' => $quantity,
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
         ]);
+    }
+
+    /**
+     * Saldo de un producto en un almacén puntual, derivado del log de
+     * movimientos (no de products.stock, que es el total global).
+     */
+    public function warehouseBalance(Product $product, int $warehouseId, ?int $lotId = null): int
+    {
+        return $product->stockBalanceInWarehouse($warehouseId, $lotId);
+    }
+
+    /**
+     * Aplica un traslado completado: genera una salida en el almacén de
+     * origen y una entrada en el de destino por cada línea. No toca
+     * products.stock (el total global de la empresa no cambia, solo se
+     * redistribuye entre almacenes). Idempotente — se puede llamar en cada
+     * guardado.
+     */
+    public function applyStockTransfer(StockTransfer $transfer, bool $enforceStockAvailability = true): void
+    {
+        DB::transaction(function () use ($transfer, $enforceStockAvailability): void {
+            $transfer = StockTransfer::query()->lockForUpdate()->findOrFail($transfer->id);
+
+            if ($transfer->status !== 'completed') {
+                return;
+            }
+
+            if ($transfer->stock_movements_recorded) {
+                return;
+            }
+
+            if ($transfer->origin_warehouse_id === $transfer->destination_warehouse_id) {
+                throw new DomainException('El almacén de destino debe ser distinto al de origen.');
+            }
+
+            $transfer->loadMissing('stockTransferItems.product');
+
+            if ($transfer->stockTransferItems->isEmpty()) {
+                throw new DomainException('El traslado no tiene líneas.');
+            }
+
+            foreach ($transfer->stockTransferItems as $item) {
+                $product = $item->product;
+                $quantity = abs((int) $item->quantity);
+
+                if ($product === null || $quantity <= 0) {
+                    continue;
+                }
+
+                if ($enforceStockAvailability) {
+                    $available = $this->warehouseBalance($product, $transfer->origin_warehouse_id, $item->lot_id);
+
+                    if ($available < $quantity) {
+                        throw new DomainException("Stock insuficiente en el almacén de origen para {$product->sku}.");
+                    }
+                }
+
+                $this->createMovement($product, 'out', $quantity, self::REFERENCE_STOCK_TRANSFER, $transfer->id, $item->lot_id, $transfer->origin_warehouse_id);
+                $this->createMovement($product, 'in', $quantity, self::REFERENCE_STOCK_TRANSFER, $transfer->id, $item->lot_id, $transfer->destination_warehouse_id);
+            }
+
+            $transfer->update([
+                'stock_movements_recorded' => true,
+                'transferred_at' => $transfer->transferred_at ?? now(),
+            ]);
+        });
+    }
+
+    /**
+     * Saldo neto por producto, lote y almacén de los movimientos que
+     * generó este traslado. Agrupar por almacén (y no solo por
+     * producto/lote) hace que la reversión sea correcta incluso si se
+     * cambió el origen/destino del header después de completarlo: lee de
+     * dónde salió/entró realmente el stock, no lo que diga el header hoy.
+     *
+     * @return Collection<int, object>
+     */
+    protected function netTransferMovementsFor(StockTransfer $transfer)
+    {
+        return StockMovement::query()
+            ->where('reference_type', self::REFERENCE_STOCK_TRANSFER)
+            ->where('reference_id', $transfer->id)
+            ->selectRaw("product_id, lot_id, warehouse_id, SUM(CASE WHEN type = 'in' THEN quantity ELSE -quantity END) as net")
+            ->groupBy('product_id', 'lot_id', 'warehouse_id')
+            ->get();
+    }
+
+    /**
+     * Revierte un traslado con movimientos compensatorios, nunca borrando
+     * los originales: el log queda contando lo que realmente pasó.
+     */
+    public function reverseStockTransfer(StockTransfer $transfer): void
+    {
+        DB::transaction(function () use ($transfer): void {
+            $transfer = StockTransfer::query()->lockForUpdate()->findOrFail($transfer->id);
+
+            if (! $transfer->stock_movements_recorded) {
+                return;
+            }
+
+            foreach ($this->netTransferMovementsFor($transfer) as $entry) {
+                $product = Product::query()->find($entry->product_id);
+
+                if ($product === null || (int) $entry->net === 0) {
+                    continue;
+                }
+
+                // net > 0 en esa combinación => quedó con entrada neta
+                // (destino): se compensa con salida. net < 0 => quedó con
+                // salida neta (origen): se compensa con entrada.
+                $this->createMovement(
+                    $product,
+                    $entry->net > 0 ? 'out' : 'in',
+                    abs((int) $entry->net),
+                    self::REFERENCE_STOCK_TRANSFER,
+                    $transfer->id,
+                    $entry->lot_id,
+                    $entry->warehouse_id,
+                );
+            }
+
+            $transfer->update(['stock_movements_recorded' => false]);
+        });
+    }
+
+    /**
+     * Alinea el stock con el estado del traslado: aplica los movimientos
+     * cuando se completa y los revierte si vuelve a borrador. Idempotente
+     * — se puede llamar en cada guardado.
+     */
+    public function syncStockForTransfer(StockTransfer $transfer): void
+    {
+        $transfer->refresh();
+
+        if ($transfer->status === 'completed') {
+            $this->applyStockTransfer($transfer);
+
+            return;
+        }
+
+        if ($transfer->stock_movements_recorded) {
+            $this->reverseStockTransfer($transfer);
+        }
     }
 }

@@ -61,6 +61,14 @@ class PurchaseInvoiceResource extends Resource
                     ->required()
                     ->searchable()
                     ->preload(),
+                Forms\Components\Select::make('warehouse_id')
+                    ->label('Almacén')
+                    ->relationship('warehouse', 'name', fn (Builder $query) => $query->active())
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->helperText('Almacén en el que entra esta mercadería.')
+                    ->disabled(fn (?PurchaseInvoice $record): bool => $record?->stock_movements_recorded ?? false),
                 Forms\Components\TextInput::make('document_number')
                     ->required()
                     ->maxLength(255)

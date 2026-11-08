@@ -59,6 +59,7 @@ class InvoiceService
             $invoice = Invoice::create([
                 'customer_id' => $order->customer_id,
                 'order_id' => $order->id,
+                'warehouse_id' => $order->warehouse_id,
                 'invoice_number' => $isIndividual ? $this->temporaryInternalNumber() : $this->invoiceNumberGenerator->next(),
                 'document_type' => 'invoice',
                 'is_fiscal_document' => ! $isIndividual,
@@ -127,6 +128,7 @@ class InvoiceService
             $creditNote = Invoice::create([
                 'customer_id' => $invoice->customer_id,
                 'order_id' => $invoice->order_id,
+                'warehouse_id' => $invoice->warehouse_id,
                 'credited_invoice_id' => $invoice->id,
                 'invoice_number' => $invoice->is_fiscal_document ? $this->invoiceNumberGenerator->next() : $this->temporaryInternalNumber(),
                 'document_type' => 'credit_note',
@@ -214,6 +216,7 @@ class InvoiceService
             $creditNote = Invoice::create([
                 'customer_id' => $invoice->customer_id,
                 'order_id' => $invoice->order_id,
+                'warehouse_id' => $invoice->warehouse_id,
                 'credited_invoice_id' => $invoice->id,
                 'invoice_number' => $invoice->is_fiscal_document ? $this->invoiceNumberGenerator->next() : $this->temporaryInternalNumber(),
                 'document_type' => 'credit_note',

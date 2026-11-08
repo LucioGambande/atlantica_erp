@@ -14,6 +14,7 @@ class PurchaseInvoice extends Model
 
     protected $fillable = [
         'supplier_id',
+        'warehouse_id',
         'document_number',
         'status',
         'generates_stock_movement',
@@ -35,6 +36,11 @@ class PurchaseInvoice extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function purchaseInvoiceItems(): HasMany

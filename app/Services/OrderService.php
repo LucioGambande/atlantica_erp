@@ -22,6 +22,7 @@ class OrderService
 
             $order = Order::create([
                 'customer_id' => $data['customer_id'],
+                'warehouse_id' => $data['warehouse_id'] ?? null,
                 'status' => $data['status'] ?? 'pending',
                 'total_amount' => 0,
             ]);

@@ -8,6 +8,7 @@ use App\Filament\Resources\StockMovementResource;
 use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Models\Product;
+use App\Models\Warehouse;
 use App\Services\StockReportService;
 use App\Support\ErpAuthorization;
 use Filament\Pages\Page;
@@ -16,6 +17,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 
 class StockReport extends Page implements HasTable
@@ -43,17 +45,39 @@ class StockReport extends Page implements HasTable
 
     public function getSummary(): array
     {
-        return app(StockReportService::class)->summary();
+        return app(StockReportService::class)->summary($this->activeWarehouseId());
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public function getWarehouseTotals(): Collection
+    {
+        return app(StockReportService::class)->totalsByWarehouse();
+    }
+
+    protected function activeWarehouseId(): ?int
+    {
+        $value = $this->getTableFilterState('warehouse_id')['value'] ?? null;
+
+        return filled($value) ? (int) $value : null;
     }
 
     public function table(Table $table): Table
     {
+        $warehouseId = $this->activeWarehouseId();
+
         return $table
             ->query(
                 Product::query()
-                    ->withSum(['stockMovements as stock_in' => fn (Builder $query) => $query->where('type', 'in')], 'quantity')
-                    ->withSum(['stockMovements as stock_out' => fn (Builder $query) => $query->where('type', 'out')], 'quantity')
-                    ->withMax('stockMovements as last_movement_at', 'created_at')
+                    ->withSum(['stockMovements as stock_in' => fn (Builder $query) => $query
+                        ->where('type', 'in')
+                        ->when($warehouseId, fn (Builder $q) => $q->where('warehouse_id', $warehouseId))], 'quantity')
+                    ->withSum(['stockMovements as stock_out' => fn (Builder $query) => $query
+                        ->where('type', 'out')
+                        ->when($warehouseId, fn (Builder $q) => $q->where('warehouse_id', $warehouseId))], 'quantity')
+                    ->withMax(['stockMovements as last_movement_at' => fn (Builder $query) => $query
+                        ->when($warehouseId, fn (Builder $q) => $q->where('warehouse_id', $warehouseId))], 'created_at')
                     ->orderBy('name')
             )
             ->columns([
@@ -76,12 +100,15 @@ class StockReport extends Page implements HasTable
                         'low' => 'Stock bajo (1–'.StockReportService::LOW_STOCK_THRESHOLD.')',
                         'ok' => 'Stock OK (>'.StockReportService::LOW_STOCK_THRESHOLD.')',
                     ]))
+                    ->state(fn (Product $record): int => $warehouseId !== null
+                        ? (int) ($record->stock_in ?? 0) - (int) ($record->stock_out ?? 0)
+                        : (int) $record->stock)
                     ->sortable()
                     ->alignEnd()
                     ->toggleable()
                     ->badge()
-                    ->color(fn (Product $record): string => StatusBadge::stockLevel(
-                        (int) $record->stock,
+                    ->color(fn ($state): string => StatusBadge::stockLevel(
+                        (int) $state,
                         StockReportService::LOW_STOCK_THRESHOLD,
                     )),
                 Tables\Columns\TextColumn::make('stock_in')
@@ -110,7 +137,13 @@ class StockReport extends Page implements HasTable
                 Tables\Columns\TextColumn::make('stock_value')
                     ->label('Valor stock')
                     ->alignEnd()
-                    ->state(fn (Product $record): float => (float) $record->stock * (float) $record->sale_price)
+                    ->state(function (Product $record) use ($warehouseId): float {
+                        $stock = $warehouseId !== null
+                            ? (int) ($record->stock_in ?? 0) - (int) ($record->stock_out ?? 0)
+                            : (int) $record->stock;
+
+                        return $stock * (float) $record->sale_price;
+                    })
                     ->formatStateUsing(fn (float $state): string => Number::currency($state, 'EUR'))
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return $query->orderByRaw("(stock * sale_price) {$direction}");
@@ -118,6 +151,9 @@ class StockReport extends Page implements HasTable
             ])
             ->defaultSort('name')
             ->filters([
+                Tables\Filters\SelectFilter::make('warehouse_id')
+                    ->label('Almacén')
+                    ->options(fn (): array => Warehouse::query()->active()->orderBy('name')->pluck('name', 'id')->all()),
                 Tables\Filters\SelectFilter::make('stock_level')
                     ->label('Nivel de stock')
                     ->options([
