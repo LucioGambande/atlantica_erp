@@ -42,6 +42,11 @@ class PurchaseInvoice extends Model
         return $this->hasMany(PurchaseInvoiceItem::class);
     }
 
+    public function logisticsShipments(): HasMany
+    {
+        return $this->hasMany(LogisticsShipment::class);
+    }
+
     /**
      * La mercadería entró al depósito: el stock de una compra se suma cuando
      * la factura pasa a "recibida" (o directamente a "pagada"), no al

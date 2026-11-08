@@ -23,6 +23,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage invoices',
             'manage stock',
             'print invoices',
+            'manage logistics',
         ];
 
         foreach ($permissions as $permission) {

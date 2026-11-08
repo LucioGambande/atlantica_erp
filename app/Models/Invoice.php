@@ -137,6 +137,11 @@ class Invoice extends Model
         return $this->hasMany(InvoiceItem::class);
     }
 
+    public function logisticsShipments(): HasMany
+    {
+        return $this->hasMany(LogisticsShipment::class);
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);

@@ -11,4 +11,6 @@ final class NavigationGroups
     public const CLIENTES = 'Clientes';
 
     public const COMPRAS = 'Compras';
+
+    public const LOGISTICA = 'Logística';
 }

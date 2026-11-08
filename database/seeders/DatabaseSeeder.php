@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             CustomersSeeder::class,
             ProductsSeeder::class,
             PriceListSeeder::class,
+            LogisticsLocationsSeeder::class,
         ]);
     }
 }

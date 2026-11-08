@@ -5,6 +5,7 @@ namespace App\Filament\Resources\InvoiceResource\Pages;
 use App\Filament\Resources\InvoiceResource;
 use App\Filament\Support\Widgets\CommentsWidget;
 use App\Models\Invoice;
+use App\Services\LogisticsMarginService;
 use Filament\Actions;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
@@ -91,6 +92,23 @@ class ViewInvoice extends ViewRecord
                             ])
                             ->columns(5),
                     ]),
+                Infolists\Components\Section::make('Margen logístico')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('logistics_net')
+                            ->label('Facturado (neto, sin IVA)')
+                            ->state(fn (Invoice $record): float => app(LogisticsMarginService::class)->forInvoice($record)['net'])
+                            ->money('EUR'),
+                        Infolists\Components\TextEntry::make('logistics_cost')
+                            ->label('Coste logístico')
+                            ->state(fn (Invoice $record): float => app(LogisticsMarginService::class)->forInvoice($record)['logistics_cost'])
+                            ->money('EUR'),
+                        Infolists\Components\TextEntry::make('logistics_margin')
+                            ->label('Margen de contribución logística')
+                            ->state(fn (Invoice $record): float => app(LogisticsMarginService::class)->forInvoice($record)['margin'])
+                            ->money('EUR')
+                            ->weight('bold'),
+                    ])
+                    ->columns(3),
             ]);
     }
 }
