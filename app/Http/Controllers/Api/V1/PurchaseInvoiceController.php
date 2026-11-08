@@ -84,7 +84,10 @@ class PurchaseInvoiceController extends Controller
 
                 $this->stockService->syncStockForPurchaseInvoice($purchaseInvoice);
 
-                return $purchaseInvoice;
+                // syncStockForPurchaseInvoice() actualiza stock_movements_recorded
+                // sobre una instancia propia (lockForUpdate + findOrFail), no sobre
+                // esta: hay que releer para no devolver un objeto desactualizado.
+                return $purchaseInvoice->fresh();
             });
 
             $purchaseInvoice->load(['supplier', 'warehouse', 'purchaseInvoiceItems.product', 'purchaseInvoiceItems.lot']);

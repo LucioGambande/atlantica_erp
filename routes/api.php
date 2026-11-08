@@ -63,6 +63,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     Route::middleware('permission:manage purchases')->group(function () {
         Route::get('/suppliers', [SupplierController::class, 'index']);
+        Route::get('/suppliers/{supplier}', [SupplierController::class, 'show']);
+        Route::post('/suppliers', [SupplierController::class, 'store']);
         Route::get('/purchase-invoices', [PurchaseInvoiceController::class, 'index']);
         Route::get('/purchase-invoices/{purchaseInvoice}', [PurchaseInvoiceController::class, 'show']);
         Route::post('/purchase-invoices', [PurchaseInvoiceController::class, 'store']);

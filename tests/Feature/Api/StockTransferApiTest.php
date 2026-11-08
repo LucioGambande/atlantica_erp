@@ -41,6 +41,9 @@ class StockTransferApiTest extends TestCase
         ]);
 
         $response->assertStatus(201);
+        // Regresión: el JSON devuelto tiene que reflejar el estado posterior a
+        // StockService, no el objeto en memoria de antes de sincronizar.
+        $response->assertJsonPath('data.stock_movements_recorded', true);
 
         $service = app(StockService::class);
         $this->assertSame(35, $service->warehouseBalance($product, $origin->id));

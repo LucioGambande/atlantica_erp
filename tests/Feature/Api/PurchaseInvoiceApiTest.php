@@ -37,6 +37,9 @@ class PurchaseInvoiceApiTest extends TestCase
         $response->assertStatus(201);
         $this->assertSame(20, $product->fresh()->stock);
         $this->assertDatabaseHas('purchase_invoices', ['document_number' => 'COMPRA-API-1', 'stock_movements_recorded' => true]);
+        // Regresión: el JSON devuelto tiene que reflejar el estado posterior a
+        // StockService, no el objeto en memoria de antes de sincronizar.
+        $response->assertJsonPath('data.stock_movements_recorded', true);
     }
 
     public function test_it_requires_at_least_one_item(): void

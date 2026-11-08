@@ -80,7 +80,10 @@ class StockTransferController extends Controller
 
                 $this->stockService->syncStockForTransfer($transfer);
 
-                return $transfer;
+                // syncStockForTransfer() actualiza stock_movements_recorded sobre
+                // una instancia propia (lockForUpdate + findOrFail), no sobre esta:
+                // hay que releer para no devolver un objeto desactualizado.
+                return $transfer->fresh();
             });
 
             $transfer->load(['originWarehouse', 'destinationWarehouse', 'stockTransferItems.product', 'stockTransferItems.lot']);
