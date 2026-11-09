@@ -167,4 +167,112 @@ class StockSanitizerService
             ->orderBy('id')
             ->get();
     }
+
+    /**
+     * Genera, una sola vez, los movimientos de facturas emitidas/pagadas que
+     * TODAVÍA no tienen ningún movimiento propio (el caso legacy: se
+     * cargaron con generates_stock_movement=false porque en su momento no
+     * se llevaba control de stock). Se guía por la presencia real de
+     * StockMovement, no por el flag — evita depender de un flag cuyo
+     * significado histórico es ambiguo.
+     *
+     * No toca facturas que ya tienen movimientos (nunca duplica) ni corre
+     * ningún DELETE: a diferencia de sanitize(), es puramente aditivo, así
+     * que no hay riesgo de arrastrar movimientos de Order/StockTransfer.
+     * Cada movimiento queda fechado con el issued_at real de su factura.
+     *
+     * Ajusta products.stock con decrement/increment (updateProductStock:
+     * true), nunca recalculateAllProductStockFromMovements(): esa
+     * recalculación suma SOLO el log de movimientos, así que pisaría
+     * cualquier stock de partida que un producto tenga sin un movimiento
+     * que lo respalde (ej. un stock inicial cargado a mano al crear el
+     * producto). Este método es puramente aditivo sobre lo que ya hay.
+     *
+     * @return array{
+     *     invoices_found: int,
+     *     invoices_processed: int,
+     *     movements_created: int,
+     *     skipped_individual: int,
+     *     dry_run: bool
+     * }
+     */
+    public function backfillMissingInvoiceMovements(bool $dryRun = false): array
+    {
+        $stats = [
+            'invoices_found' => 0,
+            'invoices_processed' => 0,
+            'movements_created' => 0,
+            'skipped_individual' => 0,
+            'dry_run' => $dryRun,
+        ];
+
+        $invoices = $this->invoicesMissingStockMovements();
+        $stats['invoices_found'] = $invoices->count();
+
+        if ($dryRun) {
+            $stats['skipped_individual'] = $invoices
+                ->filter(fn (Invoice $invoice): bool => $invoice->customer?->customer_type === 'individual')
+                ->count();
+
+            return $stats;
+        }
+
+        return DB::transaction(function () use ($stats, $invoices): array {
+            foreach ($invoices as $invoice) {
+                // Resguardo: en estos clientes el stock ya se movió a nivel
+                // del pedido (reduceStockFromOrder), nunca a nivel de la
+                // factura — crearle un movimiento acá duplicaría la salida.
+                if ($invoice->customer?->customer_type === 'individual') {
+                    $stats['skipped_individual']++;
+
+                    continue;
+                }
+
+                $created = $this->stockService->recordMovementsForInvoice(
+                    $invoice,
+                    enforceStockAvailability: false,
+                    updateProductStock: true,
+                );
+
+                if ($created > 0 && $invoice->issued_at !== null) {
+                    StockMovement::query()
+                        ->where('reference_type', self::REFERENCE_INVOICE)
+                        ->where('reference_id', $invoice->id)
+                        ->update([
+                            'created_at' => $invoice->issued_at,
+                            'updated_at' => $invoice->issued_at,
+                        ]);
+                }
+
+                $invoice->updateQuietly([
+                    'generates_stock_movement' => true,
+                    'stock_movements_recorded' => true,
+                ]);
+
+                $stats['invoices_processed']++;
+                $stats['movements_created'] += $created;
+            }
+
+            return $stats;
+        });
+    }
+
+    /**
+     * @return Collection<int, Invoice>
+     */
+    protected function invoicesMissingStockMovements(): Collection
+    {
+        $invoiceIdsWithMovements = StockMovement::query()
+            ->where('reference_type', self::REFERENCE_INVOICE)
+            ->distinct()
+            ->pluck('reference_id');
+
+        return Invoice::query()
+            ->whereIn('status', ['issued', 'paid'])
+            ->whereNotIn('id', $invoiceIdsWithMovements)
+            ->with(['invoiceItems.product', 'customer'])
+            ->orderBy('issued_at')
+            ->orderBy('id')
+            ->get();
+    }
 }
