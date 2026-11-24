@@ -9,12 +9,16 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * @group Stock &amp; Warehouses
+ *
+ * Read-only: a stock movement is never created standalone, always as a
+ * side effect of a document (purchase, transfer, invoice) via StockService.
+ */
 class StockMovementController extends Controller
 {
     /**
-     * Solo lectura: un movimiento de stock nunca se crea suelto por API,
-     * siempre es efecto de un documento (compra, traslado, factura) a
-     * través de StockService.
+     * List stock movements
      */
     public function index(Request $request): JsonResponse
     {

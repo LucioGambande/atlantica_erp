@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
+/**
+ * @group Stock &amp; Warehouses
+ */
 class StockTransferController extends Controller
 {
     use HandlesApiExceptions;

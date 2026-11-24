@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
+/**
+ * @group Suppliers &amp; Purchases
+ */
 class PurchaseInvoiceController extends Controller
 {
     use HandlesApiExceptions;

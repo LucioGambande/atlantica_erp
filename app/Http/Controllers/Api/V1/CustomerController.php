@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
+/**
+ * @group Customers
+ */
 class CustomerController extends Controller
 {
     use HandlesApiExceptions;

@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\InvoiceController as InvoiceApiController;
+use App\Http\Controllers\Api\V1\OrderController as OrderApiController;
+use App\Http\Controllers\Api\V1\PaymentController as PaymentApiController;
+use App\Http\Controllers\Api\V1\PaymentMethodController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\PurchaseInvoiceController;
 use App\Http\Controllers\Api\V1\StockMovementController;
@@ -71,10 +74,23 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/purchase-invoices/{purchaseInvoice}', [PurchaseInvoiceController::class, 'update']);
     });
 
+    Route::middleware('permission:manage orders')->group(function () {
+        Route::get('/orders', [OrderApiController::class, 'index']);
+        Route::get('/orders/{order}', [OrderApiController::class, 'show']);
+        Route::post('/orders', [OrderController::class, 'store']);
+    });
+
     Route::middleware('permission:manage invoices')->group(function () {
         Route::get('/invoices', [InvoiceApiController::class, 'index']);
         Route::get('/invoices/{invoice}', [InvoiceApiController::class, 'show']);
         Route::post('/invoices/orders/{orderId}', [InvoiceController::class, 'createFromOrder']);
+        Route::post('/invoices/{invoice}/cancel', [InvoiceApiController::class, 'cancel']);
+        Route::post('/invoices/{invoice}/credit-notes', [InvoiceApiController::class, 'creditNote']);
+
+        Route::get('/payments', [PaymentApiController::class, 'index']);
+        Route::get('/payments/{payment}', [PaymentApiController::class, 'show']);
+        Route::post('/payments', [PaymentController::class, 'store']);
+        Route::get('/payment-methods', [PaymentMethodController::class, 'index']);
     });
 
     Route::middleware('permission:manage stock')->group(function () {
