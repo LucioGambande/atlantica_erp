@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Product;
 use App\Services\AccountStatementService;
 use App\Services\InvoiceService;
+use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -91,5 +93,58 @@ class CancelledInvoiceLedgerTest extends TestCase
         ]);
 
         $this->assertSame(61.52, round($creditNote->fresh(['invoiceItems'])->grossAmount(), 2));
+    }
+
+    public function test_cancelling_an_invoice_reverses_stock_and_sets_the_credit_notes_total(): void
+    {
+        Invoice::skipSequenceValidation(true);
+
+        $customer = Customer::create([
+            'name' => 'Cliente Stock Test',
+            'customer_type' => 'horeca',
+        ]);
+
+        $product = Product::create([
+            'name' => 'Producto Stock Test',
+            'sku' => 'STK-TEST-750',
+            'purchase_price' => 0,
+            'sale_price' => 10,
+            'stock' => 50,
+        ]);
+
+        $invoice = Invoice::create([
+            'customer_id' => $customer->id,
+            'invoice_number' => 'TEST-0003',
+            'status' => 'issued',
+            'total_amount' => 0,
+            'generates_stock_movement' => true,
+            'issued_at' => now(),
+        ]);
+
+        $invoice->invoiceItems()->create([
+            'product_id' => $product->id,
+            'description' => $product->name,
+            'quantity' => 6,
+            'unit_price' => 10,
+            'discount_percent' => 0,
+            'total_price' => 60,
+        ]);
+
+        app(StockService::class)->applyStockFromInvoice($invoice->fresh());
+
+        $this->assertSame(44, $product->fresh()->stock);
+
+        $creditNote = app(InvoiceService::class)->cancelInvoice($invoice->fresh());
+
+        $this->assertSame(
+            50,
+            $product->fresh()->stock,
+            'Cancelar la factura debería devolver a stock las unidades vendidas.',
+        );
+        $this->assertSame(
+            -72.6,
+            round((float) $creditNote->fresh()->total_amount, 2),
+            'La nota de crédito no debería quedar en total_amount = 0 teniendo líneas reales.',
+        );
     }
 }

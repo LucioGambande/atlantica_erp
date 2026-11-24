@@ -155,6 +155,12 @@ class InvoiceService
                 $creditNote->update(['invoice_number' => $this->internalNumberFor($creditNote)]);
             }
 
+            // Invoice::create() dispara el observer, que ya cacheó la
+            // relación "invoiceItems" vacía (todavía no existían las
+            // líneas). Forzamos un reload antes de recalcular y de mover
+            // stock, o ambos operan sobre una colección vacía (ver mismo
+            // fix en createPartialCreditNote()).
+            $creditNote->load('invoiceItems');
             $creditNote->recalculateTotalFromItems();
 
             app(AccountStatementService::class)->registerInvoice($creditNote->fresh(['invoiceItems', 'customer']));
