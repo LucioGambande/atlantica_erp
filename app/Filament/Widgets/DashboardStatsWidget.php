@@ -51,6 +51,10 @@ class DashboardStatsWidget extends BaseWidget
                             ->whereIn('status', ['issued', 'paid']);
                     });
 
+                $netInvoiced = fn (Invoice $invoice): float => $invoice->isCreditNote()
+                    ? -$invoice->grossAmount()
+                    : $invoice->grossAmount();
+
                 return [
                     'collected' => (float) Payment::query()
                         ->whereBetween('paid_at', [$monthStart, $monthEnd])
@@ -59,12 +63,12 @@ class DashboardStatsWidget extends BaseWidget
                         ->whereIn('status', ['issued', 'paid'])
                         ->whereBetween('issued_at', [$monthStart, $monthEnd])
                         ->get()
-                        ->sum(fn (Invoice $invoice): float => $invoice->grossAmount()),
+                        ->sum($netInvoiced),
                     'invoicedYear' => (float) Invoice::query()
                         ->whereIn('status', ['issued', 'paid'])
                         ->whereBetween('issued_at', [$yearStart, $yearEnd])
                         ->get()
-                        ->sum(fn (Invoice $invoice): float => $invoice->grossAmount()),
+                        ->sum($netInvoiced),
                     'customersWithDebt' => Customer::query()->withDebt()->count(),
                     'customersOverCreditLimit' => Customer::query()
                         ->where('credit_limit', '>', 0)
