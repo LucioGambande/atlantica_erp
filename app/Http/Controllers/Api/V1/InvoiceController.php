@@ -85,6 +85,7 @@ class InvoiceController extends Controller
      * @bodyParam lines array required Lines to credit. Example: [{"invoice_item_id": 905, "quantity": 6}]
      * @bodyParam lines.*.invoice_item_id int required Id of the invoice_items row being returned. Example: 905
      * @bodyParam lines.*.quantity int required Quantity to credit back (must not exceed what remains returnable for that line). Example: 6
+     *
      * @response 201 {"message": "Credit note created.", "data": {"id": 402, "document_type": "credit_note", "credited_invoice_id": 371}}
      * @response 422 {"message": "No podés devolver 10 u. de \"Atamisque Malbec\": solo quedan 6 disponibles."}
      */

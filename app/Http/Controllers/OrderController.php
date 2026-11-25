@@ -37,6 +37,7 @@ class OrderController extends Controller
      * @bodyParam items.*.quantity int required Example: 24
      * @bodyParam items.*.unit_price numeric Price per unit before discount. Omit to use the customer's price list. Example: 17.69
      * @bodyParam items.*.discount_percent numeric 0-100. Example: 0
+     *
      * @response 201 {"message": "Order created successfully.", "data": {"id": 63, "customer_id": 211, "status": "pending", "total_amount": "1256.76"}}
      * @response 422 {"message": "Order items are required."}
      */

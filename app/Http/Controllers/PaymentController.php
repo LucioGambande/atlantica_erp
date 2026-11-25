@@ -36,6 +36,7 @@ class PaymentController extends Controller
      * @bodyParam allocations array Split the payment across several invoices instead of one. Example: [{"invoice_id": 371, "amount": 600}, {"invoice_id": 372, "amount": 674.64}]
      * @bodyParam allocations.*.invoice_id int required_with:allocations
      * @bodyParam allocations.*.amount numeric required_with:allocations Must be greater than 0.
+     *
      * @response 201 {"message": "Payment registered successfully.", "data": {"id": 55, "customer_id": 211, "amount": "1274.64"}}
      * @response 422 {"message": "La forma de pago seleccionada no es válida."}
      */
