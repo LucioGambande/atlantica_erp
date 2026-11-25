@@ -61,6 +61,79 @@ class OrderApiTest extends TestCase
         $this->getJson('/api/v1/orders')->assertStatus(403);
     }
 
+    public function test_it_adds_an_item_to_an_existing_order_and_reduces_stock(): void
+    {
+        $this->authenticateWith('manage orders');
+
+        $customer = Customer::create(['name' => 'Cliente Test', 'customer_type' => 'horeca']);
+        $existingProduct = Product::create([
+            'name' => 'Producto Existente',
+            'sku' => 'ORD-ITEM-A-750',
+            'purchase_price' => 0,
+            'sale_price' => 10,
+            'stock' => 50,
+        ]);
+        $newProduct = Product::create([
+            'name' => 'Producto Nuevo',
+            'sku' => 'ORD-ITEM-B-750',
+            'purchase_price' => 0,
+            'sale_price' => 20,
+            'stock' => 10,
+        ]);
+
+        $order = $this->postJson('/api/v1/orders', [
+            'customer_id' => $customer->id,
+            'items' => [
+                ['product_id' => $existingProduct->id, 'quantity' => 2, 'unit_price' => 10],
+            ],
+        ])->json('data');
+
+        $response = $this->patchJson("/api/v1/orders/{$order['id']}/items", [
+            'product_id' => $newProduct->id,
+            'quantity' => 3,
+            'unit_price' => 20,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertSame(80.0, (float) $response->json('data.total_amount'));
+        $this->assertSame(7, $newProduct->fresh()->stock);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order['id'],
+            'product_id' => $newProduct->id,
+            'quantity' => 3,
+        ]);
+    }
+
+    public function test_it_rejects_adding_an_item_without_enough_stock(): void
+    {
+        $this->authenticateWith('manage orders');
+
+        $customer = Customer::create(['name' => 'Cliente Test', 'customer_type' => 'horeca']);
+        $product = Product::create([
+            'name' => 'Sin Stock',
+            'sku' => 'ORD-ITEM-C-750',
+            'purchase_price' => 0,
+            'sale_price' => 25,
+            'stock' => 0,
+        ]);
+        $order = Order::create(['customer_id' => $customer->id, 'status' => 'pending', 'total_amount' => 0]);
+
+        $this->patchJson("/api/v1/orders/{$order->id}/items", [
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'unit_price' => 25,
+        ])->assertStatus(422);
+
+        $this->patchJson("/api/v1/orders/{$order->id}/items", [
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'unit_price' => 25,
+            'allow_negative_stock' => true,
+        ])->assertStatus(200);
+
+        $this->assertSame(-2, $product->fresh()->stock);
+    }
+
     private function authenticateWith(string $permission): void
     {
         $this->seed(RolesAndPermissionsSeeder::class);

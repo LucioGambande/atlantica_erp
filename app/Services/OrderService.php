@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Support\LineItemTotals;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -62,6 +64,52 @@ class OrderService
             ]);
 
             return $order->load('orderItems.product');
+        });
+    }
+
+    /**
+     * Agrega una línea a un pedido existente que todavía no tiene factura
+     * ni está cancelado, y recalcula el total del pedido.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    public function addItem(Order $order, array $item): OrderItem
+    {
+        if ($order->status === 'cancelled') {
+            throw new DomainException('No se puede modificar un pedido cancelado.');
+        }
+
+        if (! $order->canBeInvoiced()) {
+            throw new DomainException('No se puede modificar un pedido que ya tiene factura.');
+        }
+
+        return DB::transaction(function () use ($order, $item): OrderItem {
+            $product = Product::query()->findOrFail($item['product_id']);
+            $quantity = (int) ($item['quantity'] ?? 0);
+
+            if ($quantity <= 0) {
+                throw new InvalidArgumentException('Item quantity must be greater than zero.');
+            }
+
+            $priceResolver = app(PriceResolutionService::class);
+
+            $unitPrice = array_key_exists('unit_price', $item)
+                ? (float) $item['unit_price']
+                : $priceResolver->resolvePrice($product, $order->customer);
+            $discountPercent = (float) ($item['discount_percent'] ?? 0);
+            $totalPrice = LineItemTotals::discountedLineTotal($unitPrice, $quantity, $discountPercent);
+
+            $orderItem = $order->orderItems()->create([
+                'product_id' => $product->id,
+                'quantity' => $quantity,
+                'discount_percent' => $discountPercent,
+                'unit_price' => $unitPrice,
+                'total_price' => $totalPrice,
+            ]);
+
+            $order->recalculateTotalFromItems();
+
+            return $orderItem;
         });
     }
 }

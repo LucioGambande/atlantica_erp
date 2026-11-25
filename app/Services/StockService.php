@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\PurchaseInvoice;
 use App\Models\StockMovement;
@@ -90,6 +91,28 @@ class StockService
                     warehouseId: $order->warehouse_id,
                 );
             }
+        });
+    }
+
+    /**
+     * Reduce stock para una línea agregada a un pedido ya existente (fuera
+     * del alta inicial, que pasa por reduceStockFromOrder). No repite el
+     * chequeo de "ya procesado" de ese método porque la línea es nueva.
+     */
+    public function reduceStockForNewOrderItem(OrderItem $orderItem, bool $enforceStockAvailability = true): void
+    {
+        DB::transaction(function () use ($orderItem, $enforceStockAvailability): void {
+            $orderItem->loadMissing('product', 'order');
+
+            $this->reduceProductStock(
+                $orderItem->product,
+                (int) $orderItem->quantity,
+                self::REFERENCE_ORDER,
+                $orderItem->order_id,
+                enforceStockAvailability: $enforceStockAvailability,
+                lotId: $orderItem->lot_id,
+                warehouseId: $orderItem->order->warehouse_id,
+            );
         });
     }
 

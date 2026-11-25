@@ -78,6 +78,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/orders', [OrderApiController::class, 'index']);
         Route::get('/orders/{order}', [OrderApiController::class, 'show']);
         Route::post('/orders', [OrderController::class, 'store']);
+        Route::patch('/orders/{order}/items', [OrderApiController::class, 'addItem']);
     });
 
     Route::middleware('permission:manage invoices')->group(function () {
