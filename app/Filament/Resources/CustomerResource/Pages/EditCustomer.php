@@ -92,13 +92,13 @@ class EditCustomer extends EditRecord
             ClientBalanceWidget::make([
                 'record' => $this->getRecord(),
             ]),
-            CustomerInteractionsWidget::make([
-                'record' => $this->getRecord(),
-            ]),
             CustomerInvoicesWidget::make([
                 'record' => $this->getRecord(),
             ]),
             CustomerProductsWidget::make([
+                'record' => $this->getRecord(),
+            ]),
+            CustomerInteractionsWidget::make([
                 'record' => $this->getRecord(),
             ]),
         ];
