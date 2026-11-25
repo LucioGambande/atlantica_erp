@@ -6,6 +6,7 @@ use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\CustomerResource\Widgets\ClientBalanceWidget;
 use App\Filament\Resources\CustomerResource\Widgets\CustomerInteractionsWidget;
 use App\Filament\Resources\CustomerResource\Widgets\CustomerInvoicesWidget;
+use App\Filament\Resources\CustomerResource\Widgets\CustomerProductsWidget;
 use App\Integrations\HubSpot\HubSpotClient;
 use App\Services\HubSpotCompanySyncService;
 use Filament\Actions;
@@ -95,6 +96,9 @@ class EditCustomer extends EditRecord
                 'record' => $this->getRecord(),
             ]),
             CustomerInvoicesWidget::make([
+                'record' => $this->getRecord(),
+            ]),
+            CustomerProductsWidget::make([
                 'record' => $this->getRecord(),
             ]),
         ];

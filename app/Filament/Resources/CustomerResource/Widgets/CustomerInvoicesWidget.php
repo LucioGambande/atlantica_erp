@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CustomerResource\Widgets;
 
 use App\Filament\Resources\InvoiceResource;
+use App\Filament\Support\InvoiceItemsModalAction;
 use App\Filament\Support\StatusBadge;
 use App\Filament\Support\TableUi;
 use App\Models\Customer;
@@ -73,6 +74,7 @@ class CustomerInvoicesWidget extends BaseWidget
             ->defaultPaginationPageOption(5)
             ->paginationPageOptions([5, 10, 25])
             ->actions([
+                InvoiceItemsModalAction::make(fn (Invoice $record): Invoice => $record),
                 Tables\Actions\Action::make('view')
                     ->label('Ver')
                     ->icon('heroicon-o-arrow-top-right-on-square')

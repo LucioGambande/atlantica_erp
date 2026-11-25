@@ -7,6 +7,7 @@ use App\Filament\Forms\PaymentDetailForm;
 use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\InvoiceResource;
 use App\Filament\Resources\PaymentResource;
+use App\Filament\Support\InvoiceItemsModalAction;
 use App\Filament\Support\StatusBadge;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -339,6 +340,9 @@ class CustomerStatement extends Page implements HasForms, HasTable
                     ->visible(fn (): bool => ! $this->excludeSettledInvoices),
             ])
             ->actions([
+                InvoiceItemsModalAction::make(fn (LedgerEntry $record): ?Invoice => $record->reference instanceof Invoice
+                    ? $record->reference
+                    : null),
                 Tables\Actions\Action::make('viewReference')
                     ->label(fn (LedgerEntry $record): string => $record->reference instanceof Payment ? 'Editar' : 'Ver')
                     ->icon('heroicon-o-arrow-top-right-on-square')
